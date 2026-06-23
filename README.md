@@ -58,10 +58,20 @@ Para que el login corporativo funcione con cuentas `@donyeyo.com.ar`, se debe re
 - Docker Desktop (para la base de datos MySQL local)
 
 ### Paso 1: Configurar Variables de Entorno
-Copia el archivo `.env.template` en `.env` en la raíz del proyecto y completa con tus datos:
-```bash
-cp .env.template .env
-```
+Debes configurar los archivos `.env` en cada subproyecto de forma independiente:
+
+- **En el Servidor (`/server`):**
+  Copia el template e introduce las configuraciones de tu base de datos y Microsoft Azure:
+  ```bash
+  cd server
+  cp .env.template .env
+  ```
+- **En el Cliente (`/client`):**
+  Copia el template y define el Client ID y Tenant ID de Azure:
+  ```bash
+  cd client
+  cp .env.template .env
+  ```
 
 ### Paso 2: Levantar Base de Datos MySQL
 Si ya tienes la instancia Docker de MySQL configurada mediante el `docker-compose.yml` en la raíz de `Proyectos`, puedes importar el esquema ejecutando:
@@ -69,14 +79,24 @@ Si ya tienes la instancia Docker de MySQL configurada mediante el `docker-compos
 mysql -u root -p -h localhost < schema.sql
 ```
 
-### Paso 3: Instalar dependencias e iniciar el Monorepo
-Desde la raíz del proyecto, instala todas las dependencias e inicia el cliente y servidor concurrentemente:
-```bash
-npm run install-all
-npm run dev
-```
+### Paso 3: Instalar dependencias e iniciar los servicios de forma individual
+Puedes levantar cada entorno por separado abriendo dos terminales:
 
-El frontend estará disponible en `http://localhost:3000` y el backend en `http://localhost:5000`.
+* **Iniciar el Servidor (Backend):**
+  ```bash
+  cd server
+  npm install
+  npm run dev
+  ```
+  El backend estará disponible en `http://localhost:5000`.
+
+* **Iniciar el Cliente (Frontend):**
+  ```bash
+  cd client
+  npm install
+  npm run dev
+  ```
+  El frontend estará disponible en `http://localhost:3000`.
 
 ---
 
@@ -85,3 +105,4 @@ Para construir y levantar toda la arquitectura de manera contenerizada:
 ```bash
 docker-compose up --build
 ```
+
