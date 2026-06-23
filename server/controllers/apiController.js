@@ -316,6 +316,20 @@ exports.deleteMuestra = async (req, res) => {
   }
 };
 
+exports.updateMuestra = async (req, res) => {
+  const { id } = req.params;
+  const { producto, destinatario, pais_id, fecha, resultado, costo, notas } = req.body;
+  try {
+    await pool.query(
+      'UPDATE muestras SET producto = COALESCE(?, producto), destinatario = ?, pais_id = ?, fecha = ?, resultado = ?, costo = ?, notas = ? WHERE id = ?',
+      [producto, destinatario || null, pais_id || null, fecha, resultado || 'Pendiente', costo || 0.00, notas || null, id]
+    );
+    res.json({ message: 'Muestra actualizada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // --- COMUNICACIONES ---
 exports.getComunicaciones = async (req, res) => {
   try {
@@ -344,6 +358,20 @@ exports.deleteComunicacion = async (req, res) => {
   try {
     await pool.query('DELETE FROM comunicaciones WHERE id = ?', [id]);
     res.json({ message: 'Comunicación eliminada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateComunicacion = async (req, res) => {
+  const { id } = req.params;
+  const { tipo, fecha, contacto_id, asunto, resumen, proximo } = req.body;
+  try {
+    await pool.query(
+      'UPDATE comunicaciones SET tipo = COALESCE(?, tipo), fecha = ?, contacto_id = ?, asunto = COALESCE(?, asunto), resumen = ?, proximo = ? WHERE id = ?',
+      [tipo, fecha, contacto_id || null, asunto, resumen || null, proximo || null, id]
+    );
+    res.json({ message: 'Comunicación actualizada' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -382,6 +410,20 @@ exports.deleteDocumento = async (req, res) => {
   }
 };
 
+exports.updateDocumento = async (req, res) => {
+  const { id } = req.params;
+  const { nombre, numero, tipo, pais_id, vencimiento, estado, notas } = req.body;
+  try {
+    await pool.query(
+      'UPDATE documentos SET nombre = COALESCE(?, nombre), numero = ?, tipo = ?, pais_id = ?, vencimiento = ?, estado = ?, notas = ? WHERE id = ?',
+      [nombre, numero || null, tipo, pais_id || null, vencimiento || null, estado || 'Vigente', notas || null, id]
+    );
+    res.json({ message: 'Documento actualizado' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // --- PRECIOS COMPETIDORES ---
 exports.getPrecios = async (req, res) => {
   try {
@@ -410,6 +452,20 @@ exports.deletePrecio = async (req, res) => {
   try {
     await pool.query('DELETE FROM precios_competidores WHERE id = ?', [id]);
     res.json({ message: 'Registro de precio eliminado' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updatePrecio = async (req, res) => {
+  const { id } = req.params;
+  const { competidor, producto, pais_id, categoria, precio, unidad, peso, fuente, fecha, notas } = req.body;
+  try {
+    await pool.query(
+      'UPDATE precios_competidores SET competidor = COALESCE(?, competidor), producto = ?, pais_id = ?, categoria = ?, precio = ?, unidad = ?, peso = ?, fuente = ?, fecha = ?, notas = ? WHERE id = ?',
+      [competidor, producto || null, pais_id || null, categoria || null, precio || 0.00, unidad || 'unidades', peso || 1.000, fuente || null, fecha, notas || null, id]
+    );
+    res.json({ message: 'Precio actualizado' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -448,6 +504,20 @@ exports.deleteTendencia = async (req, res) => {
   }
 };
 
+exports.updateTendencia = async (req, res) => {
+  const { id } = req.params;
+  const { titulo, pais_id, categoria, descripcion, fuente, tags } = req.body;
+  try {
+    await pool.query(
+      'UPDATE tendencias SET titulo = COALESCE(?, titulo), pais_id = ?, categoria = ?, descripcion = ?, fuente = ?, tags = ? WHERE id = ?',
+      [titulo, pais_id || null, categoria || null, descripcion || null, fuente || null, tags || null, id]
+    );
+    res.json({ message: 'Tendencia actualizada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // --- CALCULADORA ---
 exports.getCalculos = async (req, res) => {
   try {
@@ -476,6 +546,20 @@ exports.deleteCalculo = async (req, res) => {
   try {
     await pool.query('DELETE FROM calculos_exportacion WHERE id = ?', [id]);
     res.json({ message: 'Cálculo de exportación eliminado' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateCalculo = async (req, res) => {
+  const { id } = req.params;
+  const { producto, pais_id, fob, qty, flete, seguro, arancel, otros, landed, fecha } = req.body;
+  try {
+    await pool.query(
+      'UPDATE calculos_exportacion SET producto = COALESCE(?, producto), pais_id = ?, fob = ?, qty = ?, flete = ?, seguro = ?, arancel = ?, otros = ?, landed = ?, fecha = ? WHERE id = ?',
+      [producto, pais_id || null, fob || 0.00, qty || 1, flete || 0.00, seguro || 0.00, arancel || 0.00, otros || 0.00, landed || 0.00, fecha, id]
+    );
+    res.json({ message: 'Cálculo actualizado' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

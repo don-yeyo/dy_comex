@@ -1,0 +1,2152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="X-Frame-Options" content="DENY">
+<meta http-equiv="Referrer-Policy" content="no-referrer">
+<title>TradeCRM — Comercio Exterior</title>
+<style>
+  :root {
+    --navy: #0f2044;
+    --navy-mid: #1a3a6b;
+    --blue: #1e5cb3;
+    --blue-light: #e8f0fb;
+    --accent: #e8003d;
+    --accent-light: #fde8ed;
+    --green: #0f6e3a;
+    --green-light: #e6f4ec;
+    --amber: #8a5200;
+    --amber-light: #fef3e2;
+    --purple: #5340b2;
+    --purple-light: #eeecfd;
+    --red: #b91c1c;
+    --red-light: #fee2e2;
+    --gray-50: #f8f8f7;
+    --gray-100: #f0eeeb;
+    --gray-200: #dddbd6;
+    --gray-400: #9b9890;
+    --gray-600: #5c5a55;
+    --gray-800: #2c2b28;
+    --text: #1a1a18;
+    --text-muted: #5c5a55;
+    --text-hint: #9b9890;
+    --border: rgba(0,0,0,0.1);
+    --border-md: rgba(0,0,0,0.16);
+    --sidebar-w: 220px;
+    --topbar-h: 54px;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; color: var(--text); background: var(--gray-50); overflow: hidden; height: 100vh; }
+
+  /* LAYOUT */
+  #app { display: flex; height: 100vh; }
+  .sidebar { width: var(--sidebar-w); background: var(--navy); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: var(--topbar-h); background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
+  .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* SIDEBAR */
+  .sidebar-brand { padding: 18px 16px 14px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .brand-name { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+  .brand-name span { color: #6a9eeb; }
+  .brand-sub { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+  .sidebar-section { padding: 12px 0 4px; }
+  .sidebar-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.3); letter-spacing: 0.08em; padding: 0 16px 4px; text-transform: uppercase; }
+  .nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 16px; font-size: 13px; color: rgba(255,255,255,0.6); cursor: pointer; border-radius: 0; transition: all 0.12s; position: relative; }
+  .nav-item:hover { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.07); }
+  .nav-item.active { color: #fff; background: rgba(255,255,255,0.12); }
+  .nav-item.active::before { content:''; position:absolute; left:0; top:4px; bottom:4px; width:3px; background: #6a9eeb; border-radius: 0 2px 2px 0; }
+  .nav-icon { font-size: 16px; width: 18px; text-align: center; }
+  .nav-badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 99px; }
+  .sidebar-footer { margin-top: auto; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.08); }
+  .user-chip { display: flex; align-items: center; gap: 8px; }
+  .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--blue); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
+  .user-name { font-size: 12px; color: rgba(255,255,255,0.7); }
+
+  /* TOPBAR */
+  .topbar-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .topbar-spacer { flex: 1; }
+  .search-box { display: flex; align-items: center; gap: 6px; background: var(--gray-100); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; font-size: 13px; color: var(--text-muted); cursor: text; width: 220px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.12s; }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover { background: #1a4fa0; }
+  .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border-md); }
+  .btn-ghost:hover { background: var(--gray-100); color: var(--text); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .icon-btn { width: 32px; height: 32px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-md); background: transparent; cursor: pointer; color: var(--text-muted); font-size: 15px; transition: all 0.12s; }
+  .icon-btn:hover { background: var(--gray-100); color: var(--text); }
+
+  /* PANELS */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* METRICS GRID */
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .metric-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .metric-label { font-size: 11px; font-weight: 500; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .metric-value { font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+  .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+  .metric-up { color: var(--green); }
+  .metric-down { color: var(--red); }
+
+  /* CARDS */
+  .card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+  .card-title { font-size: 12px; font-weight: 600; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+
+  /* BADGES */
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 99px; white-space: nowrap; }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-amber { background: var(--amber-light); color: var(--amber); }
+  .badge-blue { background: var(--blue-light); color: var(--blue); }
+  .badge-red { background: var(--red-light); color: var(--red); }
+  .badge-gray { background: var(--gray-100); color: var(--gray-600); }
+  .badge-purple { background: var(--purple-light); color: var(--purple); }
+  .badge-navy { background: rgba(15,32,68,0.08); color: var(--navy-mid); }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { font-size: 11px; font-weight: 600; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); background: var(--gray-50); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--gray-50); }
+  .clickable { cursor: pointer; }
+
+  /* AVATAR */
+  .avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .av-blue { background: var(--blue-light); color: var(--blue); }
+  .av-green { background: var(--green-light); color: var(--green); }
+  .av-amber { background: var(--amber-light); color: var(--amber); }
+  .av-purple { background: var(--purple-light); color: var(--purple); }
+  .av-red { background: var(--red-light); color: var(--red); }
+
+  /* FUNNEL */
+  .funnel { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 24px; }
+  .funnel-col { }
+  .funnel-header { font-size: 11px; font-weight: 600; padding: 6px 10px; border-radius: var(--radius-sm); margin-bottom: 8px; text-align: center; }
+  .fh-1 { background: var(--gray-100); color: var(--gray-600); }
+  .fh-2 { background: var(--blue-light); color: var(--blue); }
+  .fh-3 { background: var(--amber-light); color: var(--amber); }
+  .fh-4 { background: var(--purple-light); color: var(--purple); }
+  .fh-5 { background: var(--green-light); color: var(--green); }
+  .funnel-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; margin-bottom: 6px; font-size: 12px; }
+  .fcard-name { font-weight: 500; color: var(--text); margin-bottom: 2px; }
+  .fcard-meta { color: var(--text-muted); font-size: 11px; }
+
+  /* FORM */
+  .form-row { margin-bottom: 14px; }
+  .form-label { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 5px; display: block; }
+  .form-input { width: 100%; padding: 8px 10px; border: 1px solid var(--border-md); border-radius: var(--radius-sm); font-size: 13px; color: var(--text); background: #fff; outline: none; transition: border 0.12s; font-family: inherit; }
+  .form-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(30,92,179,0.1); }
+  select.form-input { cursor: pointer; }
+  textarea.form-input { resize: vertical; min-height: 80px; }
+  .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: var(--radius); width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .modal-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .modal-body { padding: 20px; }
+  .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* ALERT */
+  .alert { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: var(--radius-sm); margin-bottom: 8px; font-size: 13px; }
+  .alert-red { background: var(--red-light); color: var(--red); }
+  .alert-amber { background: var(--amber-light); color: var(--amber); }
+  .alert-blue { background: var(--blue-light); color: var(--blue); }
+  .alert-green { background: var(--green-light); color: var(--green); }
+  .alert-icon { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+
+  /* TIMELINE */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl-item { display: flex; gap: 12px; padding-bottom: 16px; position: relative; }
+  .tl-item::before { content:''; position:absolute; left: 14px; top: 28px; bottom: 0; width: 1px; background: var(--border); }
+  .tl-item:last-child::before { display: none; }
+  .tl-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; border: 2px solid #fff; }
+  .tl-body { flex: 1; padding-top: 4px; }
+  .tl-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .tl-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .tl-note { font-size: 12px; color: var(--text); background: var(--gray-50); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; margin-top: 6px; }
+
+  /* COUNTRY */
+  .country-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .country-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s; }
+  .country-card:hover { border-color: var(--blue); box-shadow: 0 2px 8px rgba(30,92,179,0.1); }
+  .country-flag { font-size: 28px; margin-bottom: 8px; }
+  .country-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+  .country-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-top: 1px solid var(--border); }
+  .country-row-label { color: var(--text-muted); }
+  .country-row-value { color: var(--text); font-weight: 500; }
+
+  /* TASK */
+  .task-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; }
+  .task-cb { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border-md); cursor: pointer; flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; }
+  .task-cb.done { background: var(--green); border-color: var(--green); color: #fff; font-size: 10px; }
+  .task-body { flex: 1; }
+  .task-title { font-size: 13px; color: var(--text); }
+  .task-title.done-text { text-decoration: line-through; color: var(--text-hint); }
+  .task-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: flex; gap: 8px; }
+  .task-due { color: var(--red); }
+  .task-due.ok { color: var(--text-muted); }
+
+  /* COST CALC */
+  .calc-result { background: var(--navy); color: #fff; border-radius: var(--radius); padding: 20px; margin-top: 16px; }
+  .calc-line { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .calc-line:last-child { border-bottom: none; }
+  .calc-total { display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; padding-top: 10px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.25); }
+  .calc-label { color: rgba(255,255,255,0.65); }
+  .calc-value { color: #fff; font-weight: 500; }
+
+  /* SAMPLE */
+  .sample-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; }
+
+  /* INTEL */
+  .intel-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
+  .intel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .intel-source { font-size: 11px; color: var(--text-hint); }
+  .intel-body { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .intel-tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  .tab { padding: 8px 16px; font-size: 13px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.12s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 500; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* PROGRESS BAR */
+  .progress-bar { height: 6px; background: var(--gray-100); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; background: var(--blue); }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 48px 24px; color: var(--text-hint); }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; }
+  .empty-text { font-size: 14px; }
+
+  /* DETAIL PANEL */
+  .detail-overlay { display: none; position: fixed; inset: 0; z-index: 900; }
+  .detail-overlay.open { display: block; }
+  .detail-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.3); }
+  .detail-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 460px; background: #fff; box-shadow: -4px 0 20px rgba(0,0,0,0.12); overflow-y: auto; }
+  .detail-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .detail-body { padding: 20px; }
+  .detail-section { margin-bottom: 20px; }
+  .detail-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-hint); margin-bottom: 10px; }
+  .kv-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .kv-key { color: var(--text-muted); width: 130px; flex-shrink: 0; }
+  .kv-value { color: var(--text); flex: 1; }
+
+  /* MISC */
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+  .text-muted { color: var(--text-muted); }
+  .text-sm { font-size: 12px; }
+  .flex { display: flex; }
+  .flex-center { display: flex; align-items: center; }
+  .gap-8 { gap: 8px; }
+  .gap-12 { gap: 12px; }
+  .mb-16 { margin-bottom: 16px; }
+  .mb-24 { margin-bottom: 24px; }
+  .flag-lg { font-size: 22px; }
+  .icon-cell { font-size: 18px; }
+
+  /* TOAST */
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--navy); color: #fff; padding: 10px 16px; border-radius: var(--radius-sm); font-size: 13px; z-index: 9999; opacity: 0; transform: translateY(8px); transition: all 0.2s; pointer-events: none; }
+  #toast.show { opacity: 1; transform: translateY(0); }
+
+  @media (max-width: 900px) {
+    .metrics { grid-template-columns: 1fr 1fr; }
+    .funnel { grid-template-columns: 1fr 1fr 1fr; }
+  }
+
+  /* ===== LOGIN SCREEN ===== */
+  #login-screen { position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column; }
+  #login-screen.hidden { display:none; }
+  .login-box { background:#fff;border-radius:16px;padding:36px 40px;width:380px;box-shadow:0 24px 80px rgba(0,0,0,0.35); }
+  .login-logo { font-size:22px;font-weight:700;color:var(--navy);margin-bottom:4px; }
+  .login-logo span { color:var(--blue); }
+  .login-sub { font-size:13px;color:var(--text-muted);margin-bottom:28px; }
+  .login-field { margin-bottom:14px; }
+  .login-label { font-size:12px;font-weight:500;color:var(--text-muted);margin-bottom:5px;display:block; }
+  .login-input { width:100%;padding:10px 12px;border:1.5px solid var(--border-md);border-radius:8px;font-size:14px;color:var(--text);outline:none;transition:border 0.15s;font-family:inherit; }
+  .login-input:focus { border-color:var(--blue);box-shadow:0 0 0 3px rgba(30,92,179,0.12); }
+  .login-btn { width:100%;padding:11px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-top:6px;transition:background 0.15s; }
+  .login-btn:hover { background:var(--navy-mid); }
+  .login-error { font-size:12px;color:var(--red);margin-top:8px;min-height:16px;text-align:center; }
+  .login-attempts { font-size:11px;color:var(--text-hint);text-align:center;margin-top:10px; }
+  .viewer-notice { background:var(--amber-light);color:var(--amber);font-size:12px;padding:8px 14px;border-radius:var(--radius-sm);margin-bottom:14px;display:none; }
+  .viewer-notice.show { display:block; }
+  .locked-btn { opacity:0.4;cursor:not-allowed!important;pointer-events:none; }
+  .admin-user-row { display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px; }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo"><span>Trade</span>CRM</div>
+    <div class="login-sub">Comercio Exterior — Don Yeyo</div>
+    <div class="login-field">
+      <label class="login-label">Usuario</label>
+      <input class="login-input" id="login-user" type="text" placeholder="usuario" autocomplete="username" spellcheck="false">
+    </div>
+    <div class="login-field">
+      <label class="login-label">Contraseña</label>
+      <input class="login-input" id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <button class="login-btn" onclick="doLogin()" id="login-btn">Ingresar</button>
+    <div class="login-attempts" id="login-attempts"></div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL MODAL -->
+<div class="modal-overlay" id="modal-admin">
+  <div class="modal" style="width:640px">
+    <div class="modal-header"><span class="modal-title">Administración de usuarios</span><button class="icon-btn" onclick="closeModal('modal-admin')">✕</button></div>
+    <div class="modal-body">
+      <div style="margin-bottom:16px">
+        <div class="card-title" style="margin-bottom:12px">Usuarios activos</div>
+        <div id="admin-user-list"></div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px">
+        <div class="card-title" style="margin-bottom:12px">Agregar usuario</div>
+        <div class="form-grid-3">
+          <div class="form-row"><label class="form-label">Usuario</label><input class="form-input" id="new-user" placeholder="nombre.apellido"></div>
+          <div class="form-row"><label class="form-label">Contraseña</label><input class="form-input" type="password" id="new-pass" placeholder="min. 8 caracteres"></div>
+          <div class="form-row"><label class="form-label">Rol</label>
+            <select class="form-input" id="new-role">
+              <option value="admin">Admin</option>
+              <option value="editor">Editor</option>
+              <option value="viewer">Viewer (solo lectura)</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="addUser()">Agregar</button>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">
+        <div class="card-title" style="margin-bottom:8px">Cambiar mi contrasena</div>
+        <div class="form-grid-2">
+          <div class="form-row"><label class="form-label">Actual</label><input class="form-input" type="password" id="chg-old"></div>
+          <div class="form-row"><label class="form-label">Nueva (min 8 char)</label><input class="form-input" type="password" id="chg-new"></div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="changePassword()">Cambiar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-name"><span>Trade</span>CRM</div>
+      <div class="brand-sub">Comercio Exterior</div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Principal</div>
+      <div class="nav-item active" onclick="nav('dashboard',this)"><span class="nav-icon">📊</span> Dashboard</div>
+      <div class="nav-item" onclick="nav('tareas',this)"><span class="nav-icon">✅</span> Tareas <span class="nav-badge" id="badge-tareas">0</span></div>
+      <div class="nav-item" onclick="nav('alertas',this)"><span class="nav-icon">🔔</span> Alertas <span class="nav-badge" id="badge-alertas" style="background:var(--accent)">0</span></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Gestión</div>
+      <div class="nav-item" onclick="nav('contactos',this)"><span class="nav-icon">👥</span> Contactos</div>
+      <div class="nav-item" onclick="nav('visitas',this)"><span class="nav-icon">📅</span> Visitas</div>
+      <div class="nav-item" onclick="nav('oportunidades',this)"><span class="nav-icon">💼</span> Oportunidades</div>
+      <div class="nav-item" onclick="nav('muestras',this)"><span class="nav-icon">📦</span> Muestras</div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Información</div>
+      <div class="nav-item" onclick="nav('paises',this)"><span class="nav-icon">🌍</span> Países</div>
+      <div class="nav-item" onclick="nav('documentos',this)"><span class="nav-icon">📄</span> Documentos</div>
+      <div class="nav-item" onclick="nav('inteligencia',this)"><span class="nav-icon">📈</span> Inteligencia</div>
+      <div class="nav-item" onclick="nav('calculadora',this)"><span class="nav-icon">🧮</span> Calculadora</div>
+      <div class="nav-item" onclick="nav('cobranzas',this)"><span class="nav-icon">💰</span> Cobranzas</div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar">DY</div>
+        <div>
+          <div class="user-name" id="sidebar-username">—</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);" id="sidebar-role">—</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:6px;">
+        <button class="btn btn-ghost btn-sm" style="flex:1;color:rgba(255,255,255,0.6);border-color:rgba(255,255,255,0.15)" onclick="doLogout()">Cerrar sesion</button>
+        <button class="btn btn-ghost btn-sm" id="btn-admin" style="color:rgba(255,255,255,0.6);border-color:rgba(255,255,255,0.15);display:none" onclick="openAdminPanel()">Admin</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title" id="topbar-title">Dashboard</span>
+      <div class="topbar-spacer"></div>
+      <div class="search-box" onclick="focusSearch()">🔍 <span style="color:var(--text-hint)">Buscar...</span></div>
+      <button class="btn btn-primary" id="topbar-btn" onclick="newAction()">＋ Nueva actividad</button>
+    </div>
+
+    <div class="content" id="content">
+      <div class="viewer-notice" id="viewer-notice">Modo solo lectura. Tu rol no permite modificar datos.</div>
+
+      <!-- DASHBOARD -->
+      <div class="panel active" id="panel-dashboard">
+        <div class="metrics">
+          <div class="metric-card">
+            <div class="metric-label">Países activos</div>
+            <div class="metric-value" id="m-paises">0</div>
+            <div class="metric-sub"><span class="metric-up">▲</span> exportando actualmente</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Contactos</div>
+            <div class="metric-value" id="m-contactos">0</div>
+            <div class="metric-sub">importadores y distribuidores</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Pipeline USD</div>
+            <div class="metric-value" id="m-pipeline">$0</div>
+            <div class="metric-sub">oportunidades abiertas</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Tareas vencidas</div>
+            <div class="metric-value metric-down" id="m-tareas">0</div>
+            <div class="metric-sub">requieren atención hoy</div>
+          </div>
+        </div>
+
+        <!-- EXPORTACIÓN ANUAL -->
+        <div class="card mb-24">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div class="card-title" style="margin-bottom:0">📦 Volumen de exportación anual</div>
+            <select class="form-input" style="width:110px;font-size:12px" id="dash-year-filter" onchange="renderDashboard()">
+              <option value="">Este año</option>
+              <option value="all">Todo</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px">
+            <div style="background:var(--blue-light);border-radius:var(--radius-sm);padding:14px 16px">
+              <div style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Unidades exportadas</div>
+              <div style="font-size:24px;font-weight:700;color:var(--navy)" id="dash-exp-unidades">0</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px">total del período</div>
+            </div>
+            <div style="background:var(--green-light);border-radius:var(--radius-sm);padding:14px 16px">
+              <div style="font-size:11px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Valor exportado (USD)</div>
+              <div style="font-size:24px;font-weight:700;color:var(--navy)" id="dash-exp-valor">$0</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px">operaciones cerradas</div>
+            </div>
+            <div style="background:var(--amber-light);border-radius:var(--radius-sm);padding:14px 16px">
+              <div style="font-size:11px;font-weight:600;color:var(--amber);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Cobranza vencida</div>
+              <div style="font-size:24px;font-weight:700;color:var(--red)" id="dash-cob-vencido">$0</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px">requiere seguimiento</div>
+            </div>
+          </div>
+          <div class="card-title" style="margin-bottom:10px">Desglose por país de destino</div>
+          <div id="dash-pais-breakdown">
+            <div class="empty" style="padding:16px"><div class="empty-icon">📦</div><div class="empty-text" style="font-size:12px">Registrá exportaciones en Cobranzas para ver el desglose por país.</div></div>
+          </div>
+        </div>
+
+        <div class="grid-2 mb-24">
+          <div class="card">
+            <div class="card-title">🔔 Alertas críticas</div>
+            <div id="dash-alertas"><div class="empty" style="padding:16px"><div class="empty-icon">✅</div><div class="empty-text" style="font-size:12px">Sin alertas pendientes</div></div></div>
+          </div>
+          <div class="card">
+            <div class="card-title">📅 Próximas visitas</div>
+            <div id="dash-visitas"><div class="empty" style="padding:16px"><div class="empty-icon">📅</div><div class="empty-text" style="font-size:12px">Sin visitas programadas</div></div></div>
+          </div>
+        </div>
+
+        <div class="card mb-24">
+          <div class="card-title">💼 Funnel de oportunidades</div>
+          <div class="funnel" id="dash-funnel">
+            <div class="funnel-col"><div class="funnel-header fh-1">Prospecto</div><div id="f-1"></div></div>
+            <div class="funnel-col"><div class="funnel-header fh-2">Contactado</div><div id="f-2"></div></div>
+            <div class="funnel-col"><div class="funnel-header fh-3">Propuesta</div><div id="f-3"></div></div>
+            <div class="funnel-col"><div class="funnel-header fh-4">Negociación</div><div id="f-4"></div></div>
+            <div class="funnel-col"><div class="funnel-header fh-5">Cerrado</div><div id="f-5"></div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📋 Actividad reciente</div>
+          <div id="dash-actividad"><div class="empty" style="padding:16px"><div class="empty-text" style="font-size:12px">Sin actividad registrada aún</div></div></div>
+        </div>
+      </div>
+
+      <!-- TAREAS -->
+      <div class="panel" id="panel-tareas">
+        <div class="flex flex-center gap-8 mb-16">
+          <select class="form-input" style="width:160px" onchange="filterTasks()" id="task-filter-status">
+            <option value="">Todas</option>
+            <option value="pendiente">Pendientes</option>
+            <option value="hecha">Completadas</option>
+          </select>
+          <select class="form-input" style="width:160px" onchange="filterTasks()" id="task-filter-prior">
+            <option value="">Toda prioridad</option>
+            <option value="alta">Alta</option>
+            <option value="media">Media</option>
+            <option value="baja">Baja</option>
+          </select>
+          <div class="topbar-spacer"></div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-tarea')">＋ Nueva tarea</button>
+        </div>
+        <div id="lista-tareas"></div>
+      </div>
+
+      <!-- ALERTAS -->
+      <div class="panel" id="panel-alertas">
+        <div class="mb-16" style="font-size:13px;color:var(--text-muted)">Vencimientos próximos de documentos y compromisos registrados. Las alertas se generan automáticamente al guardar documentos o visitas con fecha.</div>
+        <div id="lista-alertas"></div>
+      </div>
+
+      <!-- CONTACTOS -->
+      <div class="panel" id="panel-contactos">
+        <div class="flex flex-center gap-8 mb-16">
+          <input type="text" class="form-input" style="width:220px" placeholder="Buscar contacto..." oninput="renderContactos()" id="search-contacto">
+          <select class="form-input" style="width:150px" onchange="renderContactos()" id="filter-pais-contacto">
+            <option value="">Todos los países</option>
+          </select>
+          <select class="form-input" style="width:150px" onchange="renderContactos()" id="filter-rol-contacto">
+            <option value="">Todos los roles</option>
+            <option value="Importador">Importador</option>
+            <option value="Distribuidor">Distribuidor</option>
+            <option value="Broker">Broker</option>
+            <option value="Retailer">Retailer</option>
+            <option value="Otro">Otro</option>
+          </select>
+          <div class="topbar-spacer"></div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-contacto')">＋ Nuevo contacto</button>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Nombre</th><th>Empresa</th><th>País</th><th>Rol</th><th>Estado</th><th>Último contacto</th><th></th></tr></thead>
+              <tbody id="tbody-contactos"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- VISITAS -->
+      <div class="panel" id="panel-visitas">
+        <div class="flex flex-center gap-8 mb-16">
+          <select class="form-input" style="width:200px" onchange="renderVisitas()" id="filter-tipo-visita">
+            <option value="">Todos los tipos</option>
+            <option value="Feria internacional">Feria internacional</option>
+            <option value="Ronda de negocios">Ronda de negocios</option>
+            <option value="Reunión comercial">Reunión comercial</option>
+            <option value="Visita a cliente">Visita a cliente</option>
+            <option value="Videoconferencia">Videoconferencia</option>
+          </select>
+          <select class="form-input" style="width:150px" onchange="renderVisitas()" id="filter-estado-visita">
+            <option value="">Todos los estados</option>
+            <option value="Planificada">Planificada</option>
+            <option value="Realizada">Realizada</option>
+            <option value="Cancelada">Cancelada</option>
+          </select>
+          <div class="topbar-spacer"></div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-visita')">＋ Nueva visita</button>
+        </div>
+        <div id="lista-visitas"></div>
+      </div>
+
+      <!-- OPORTUNIDADES -->
+      <div class="panel" id="panel-oportunidades">
+        <div class="flex flex-center gap-8 mb-16">
+          <select class="form-input" style="width:160px" onchange="renderOportunidades()" id="filter-etapa-op">
+            <option value="">Todas las etapas</option>
+            <option value="Prospecto">Prospecto</option>
+            <option value="Contactado">Contactado</option>
+            <option value="Propuesta">Propuesta</option>
+            <option value="Negociación">Negociación</option>
+            <option value="Cerrado">Cerrado</option>
+            <option value="Perdido">Perdido</option>
+          </select>
+          <select class="form-input" style="width:150px" onchange="renderOportunidades()" id="filter-marca-op">
+            <option value="">Todas las marcas</option>
+            <option value="Don Yeyo">Don Yeyo</option>
+            <option value="DeViano">DeViano</option>
+          </select>
+          <div class="topbar-spacer"></div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-oportunidad')">＋ Nueva oportunidad</button>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Oportunidad</th><th>País</th><th>Marca</th><th>Etapa</th><th>Monto USD</th><th>Probabilidad</th><th>Cierre estimado</th><th></th></tr></thead>
+              <tbody id="tbody-oportunidades"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- MUESTRAS -->
+      <div class="panel" id="panel-muestras">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab(this,'tab-muestras')">📦 Muestras enviadas</div>
+          <div class="tab" onclick="switchTab(this,'tab-comunicaciones')">💬 Log de comunicaciones</div>
+        </div>
+        <div class="tab-panel active" id="tab-muestras">
+          <div class="flex flex-center gap-8 mb-16">
+            <select class="form-input" style="width:160px" onchange="renderMuestras()" id="filter-resultado-muestra">
+              <option value="">Todos los resultados</option>
+              <option value="Pendiente">Pendiente</option>
+              <option value="Positivo">Positivo → pedido</option>
+              <option value="En evaluación">En evaluación</option>
+              <option value="Negativo">Negativo</option>
+            </select>
+            <div class="topbar-spacer"></div>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-muestra')">＋ Registrar muestra</button>
+          </div>
+          <div id="lista-muestras"></div>
+        </div>
+        <div class="tab-panel" id="tab-comunicaciones">
+          <div class="flex flex-center gap-8 mb-16">
+            <select class="form-input" style="width:160px" onchange="renderComunicaciones()" id="filter-tipo-com">
+              <option value="">Todos los tipos</option>
+              <option value="Email">Email</option>
+              <option value="Llamada">Llamada</option>
+              <option value="WhatsApp">WhatsApp</option>
+              <option value="Reunión">Reunión</option>
+              <option value="Video">Videollamada</option>
+            </select>
+            <div class="topbar-spacer"></div>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-comunicacion')">＋ Registrar contacto</button>
+          </div>
+          <div id="lista-comunicaciones"></div>
+        </div>
+      </div>
+
+      <!-- PAÍSES -->
+      <div class="panel" id="panel-paises">
+        <div class="flex flex-center gap-8 mb-16">
+          <div class="topbar-spacer"></div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-pais')">＋ Agregar país</button>
+        </div>
+        <div class="country-grid" id="grid-paises"></div>
+      </div>
+
+      <!-- DOCUMENTOS -->
+      <div class="panel" id="panel-documentos">
+        <div class="flex flex-center gap-8 mb-16">
+          <select class="form-input" style="width:180px" onchange="renderDocumentos()" id="filter-tipo-doc">
+            <option value="">Todos los tipos</option>
+            <option value="Invoice">Invoice / Factura</option>
+            <option value="Bill of Lading">Bill of Lading</option>
+            <option value="Packing List">Packing List</option>
+            <option value="Certificado fitosanitario">Certificado fitosanitario</option>
+            <option value="Certificado de origen">Certificado de origen</option>
+            <option value="Contrato">Contrato</option>
+            <option value="Otro">Otro</option>
+          </select>
+          <select class="form-input" style="width:150px" onchange="renderDocumentos()" id="filter-estado-doc">
+            <option value="">Todos los estados</option>
+            <option value="Vigente">Vigente</option>
+            <option value="Vencido">Vencido</option>
+            <option value="Por vencer">Por vencer</option>
+          </select>
+          <div class="topbar-spacer"></div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-documento')">＋ Agregar documento</button>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Documento</th><th>Tipo</th><th>País / Contacto</th><th>Vencimiento</th><th>Estado</th><th></th></tr></thead>
+              <tbody id="tbody-documentos"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- INTELIGENCIA -->
+      <div class="panel" id="panel-inteligencia">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab(this,'tab-precios')">💰 Precios competidores</div>
+          <div class="tab" onclick="switchTab(this,'tab-tendencias')">📈 Tendencias de mercado</div>
+        </div>
+        <div class="tab-panel active" id="tab-precios">
+          <div class="flex flex-center gap-8 mb-16">
+            <div class="topbar-spacer"></div>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-precio')">＋ Registrar precio</button>
+          </div>
+          <div class="card" style="padding:0">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Competidor / Producto</th><th>País</th><th>Categoría</th><th>Precio</th><th>Unidad</th><th>Precio/kg</th><th>Fuente</th><th>Fecha</th><th></th></tr></thead>
+                <tbody id="tbody-precios"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="tab-panel" id="tab-tendencias">
+          <div class="flex flex-center gap-8 mb-16">
+            <div class="topbar-spacer"></div>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-tendencia')">＋ Agregar nota</button>
+          </div>
+          <div id="lista-tendencias"></div>
+        </div>
+      </div>
+
+      <!-- CALCULADORA -->
+      <div class="panel" id="panel-calculadora">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">🧮 Calculadora de costo de exportación</div>
+            <div class="form-row"><label class="form-label">Producto / descripción</label><input class="form-input" id="calc-producto" placeholder="Ej: Tapas Don Yeyo x 24u"></div>
+            <div class="form-grid-2">
+              <div class="form-row"><label class="form-label">Precio FOB (USD/ton o unidad)</label><input class="form-input" type="number" id="calc-fob" placeholder="0" oninput="calcExport()"></div>
+              <div class="form-row"><label class="form-label">Cantidad (unidades)</label><input class="form-input" type="number" id="calc-cantidad" placeholder="0" oninput="calcExport()"></div>
+            </div>
+            <div class="form-grid-2">
+              <div class="form-row"><label class="form-label">Flete internacional (USD)</label><input class="form-input" type="number" id="calc-flete" placeholder="0" oninput="calcExport()"></div>
+              <div class="form-row"><label class="form-label">Seguro (USD)</label><input class="form-input" type="number" id="calc-seguro" placeholder="0" oninput="calcExport()"></div>
+            </div>
+            <div class="form-grid-2">
+              <div class="form-row"><label class="form-label">Arancel destino (%)</label><input class="form-input" type="number" id="calc-arancel" placeholder="0" oninput="calcExport()"></div>
+              <div class="form-row"><label class="form-label">Otros gastos destino (USD)</label><input class="form-input" type="number" id="calc-otros" placeholder="0" oninput="calcExport()"></div>
+            </div>
+            <div class="form-row"><label class="form-label">País destino</label>
+              <select class="form-input" id="calc-pais"><option>Brasil</option><option>México</option><option>Chile</option><option>Francia</option><option>Italia</option><option>Otro</option></select>
+            </div>
+            <div class="form-row"><label class="form-label">Incoterm</label>
+              <select class="form-input" id="calc-incoterm"><option>FOB</option><option>CIF</option><option>DAP</option><option>EXW</option><option>DDP</option></select>
+            </div>
+            <div id="calc-result"></div>
+            <div style="margin-top:14px;display:flex;gap:8px;">
+              <button class="btn btn-primary" onclick="calcExport()">Calcular</button>
+              <button class="btn btn-ghost" onclick="saveCalc()">💾 Guardar cálculo</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">📋 Cálculos guardados</div>
+            <div id="lista-calculos"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COBRANZAS -->
+      <div class="panel" id="panel-cobranzas">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px">
+          <div class="metric-card" style="border-left:4px solid var(--green)">
+            <div class="metric-label">Cobrado (año)</div>
+            <div class="metric-value" id="cob-cobrado">$0</div>
+            <div class="metric-sub"><span id="cob-cobrado-ops">0</span> operaciones cobradas</div>
+          </div>
+          <div class="metric-card" style="border-left:4px solid var(--amber)">
+            <div class="metric-label">Pendiente</div>
+            <div class="metric-value" style="color:var(--amber)" id="cob-pendiente">$0</div>
+            <div class="metric-sub"><span id="cob-pendiente-ops">0</span> operaciones en curso</div>
+          </div>
+          <div class="metric-card" style="border-left:4px solid var(--red)">
+            <div class="metric-label">Vencido</div>
+            <div class="metric-value" style="color:var(--red)" id="cob-vencido">$0</div>
+            <div class="metric-sub"><span id="cob-vencido-ops">0</span> operaciones vencidas</div>
+          </div>
+        </div>
+        <div class="flex flex-center gap-8 mb-16">
+          <select class="form-input" style="width:160px" onchange="renderCobranzas()" id="filter-estado-cob">
+            <option value="">Todos los estados</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Cobrado">Cobrado</option>
+            <option value="Vencido">Vencido</option>
+            <option value="Cobrado parcial">Cobrado parcial</option>
+          </select>
+          <select class="form-input" style="width:150px" onchange="renderCobranzas()" id="filter-pais-cob">
+            <option value="">Todos los países</option>
+          </select>
+          <input type="text" class="form-input" style="width:200px" placeholder="Buscar cliente / operación..." id="search-cob" oninput="renderCobranzas()">
+          <div class="topbar-spacer"></div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-cobranza')">＋ Nueva operación</button>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Operación / Cliente</th><th>País</th><th>Monto (USD)</th><th>Unidades</th><th>Cobrado</th><th>Saldo</th><th>Vencimiento</th><th>Estado</th><th></th></tr></thead>
+              <tbody id="tbody-cobranzas"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- MODALES -->
+
+<!-- Modal Contacto -->
+<div class="modal-overlay" id="modal-contacto">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Nuevo contacto</span><button class="icon-btn" onclick="closeModal('modal-contacto')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Nombre *</label><input class="form-input" id="c-nombre" placeholder="Nombre completo"></div>
+        <div class="form-row"><label class="form-label">Apellido</label><input class="form-input" id="c-apellido" placeholder="Apellido"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Empresa</label><input class="form-input" id="c-empresa" placeholder="Nombre empresa"></div>
+        <div class="form-row"><label class="form-label">Rol</label>
+          <select class="form-input" id="c-rol"><option>Importador</option><option>Distribuidor</option><option>Broker</option><option>Retailer</option><option>Otro</option></select>
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">País</label><input class="form-input" id="c-pais" placeholder="País"></div>
+        <div class="form-row"><label class="form-label">Ciudad</label><input class="form-input" id="c-ciudad" placeholder="Ciudad"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Email</label><input class="form-input" id="c-email" type="email" placeholder="email@empresa.com"></div>
+        <div class="form-row"><label class="form-label">Teléfono / WhatsApp</label><input class="form-input" id="c-telefono" placeholder="+1 555 0000"></div>
+      </div>
+      <div class="form-row"><label class="form-label">Estado</label>
+        <select class="form-input" id="c-estado"><option>Activo</option><option>Prospecto</option><option>En proceso</option><option>Inactivo</option></select>
+      </div>
+      <div class="form-row"><label class="form-label">Notas</label><textarea class="form-input" id="c-notas" placeholder="Observaciones, intereses, restricciones..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-contacto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveContacto()">Guardar contacto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Visita -->
+<div class="modal-overlay" id="modal-visita">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Nueva visita / reunión</span><button class="icon-btn" onclick="closeModal('modal-visita')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label">Título *</label><input class="form-input" id="v-titulo" placeholder="Ej: Expofood Brasil 2025"></div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Tipo</label>
+          <select class="form-input" id="v-tipo" onchange="toggleRondaFields()">
+            <option>Feria internacional</option>
+            <option>Ronda de negocios</option>
+            <option>Reunión comercial</option>
+            <option>Visita a cliente</option>
+            <option>Videoconferencia</option>
+          </select>
+        </div>
+        <div class="form-row"><label class="form-label">Estado</label>
+          <select class="form-input" id="v-estado"><option>Planificada</option><option>Realizada</option><option>Cancelada</option></select>
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Fecha</label><input class="form-input" type="date" id="v-fecha"></div>
+        <div class="form-row"><label class="form-label">País / Ciudad</label><input class="form-input" id="v-lugar" placeholder="Ej: São Paulo, Brasil"></div>
+      </div>
+      <div class="form-row"><label class="form-label">Contactos participantes</label><input class="form-input" id="v-contactos" placeholder="Nombres o empresas"></div>
+      <!-- Campos específicos de Ronda de negocios -->
+      <div id="ronda-fields" style="display:none;background:var(--blue-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px">
+        <div style="font-size:12px;font-weight:600;color:var(--blue);margin-bottom:10px">📋 Datos de Ronda de negocios</div>
+        <div class="form-grid-2">
+          <div class="form-row" style="margin-bottom:10px"><label class="form-label">Organismo organizador</label><input class="form-input" id="v-ronda-org" placeholder="Ej: ProArgentina, Cancillería"></div>
+          <div class="form-row" style="margin-bottom:10px"><label class="form-label">Nro. de reuniones</label><input class="form-input" type="number" id="v-ronda-reuniones" placeholder="0"></div>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-row" style="margin-bottom:10px"><label class="form-label">Importadores contactados</label><input class="form-input" id="v-ronda-importadores" placeholder="Lista de empresas"></div>
+          <div class="form-row" style="margin-bottom:10px"><label class="form-label">Pedidos generados (USD)</label><input class="form-input" type="number" id="v-ronda-pedidos" placeholder="0"></div>
+        </div>
+        <div class="form-row" style="margin-bottom:0"><label class="form-label">Resultado general</label>
+          <select class="form-input" id="v-ronda-resultado"><option>Muy positivo</option><option>Positivo</option><option>Neutral</option><option>Sin resultados</option></select>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">Resultados / Notas</label><textarea class="form-input" id="v-notas" placeholder="Qué se habló, muestras entregadas, compromisos asumidos..."></textarea></div>
+      <div class="form-row"><label class="form-label">Próximo paso</label><input class="form-input" id="v-proximo" placeholder="Ej: Enviar propuesta antes del 30/6"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-visita')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveVisita()">Guardar visita</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Oportunidad -->
+<div class="modal-overlay" id="modal-oportunidad">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Nueva oportunidad</span><button class="icon-btn" onclick="closeModal('modal-oportunidad')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label">Nombre de la oportunidad *</label><input class="form-input" id="op-nombre" placeholder="Ej: Grupo Arcos — Tapas Don Yeyo"></div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">País</label><input class="form-input" id="op-pais" placeholder="País"></div>
+        <div class="form-row"><label class="form-label">Contacto</label><input class="form-input" id="op-contacto" placeholder="Nombre contacto"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Marca</label>
+          <select class="form-input" id="op-marca"><option>Don Yeyo</option><option>DeViano</option><option>Ambas</option></select>
+        </div>
+        <div class="form-row"><label class="form-label">Categoría de producto</label>
+          <select class="form-input" id="op-categoria"><option>Tapas</option><option>Pastas</option><option>Panificados</option><option>Tortillas</option><option>Mix</option></select>
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Monto estimado (USD)</label><input class="form-input" type="number" id="op-monto" placeholder="0"></div>
+        <div class="form-row"><label class="form-label">Probabilidad (%)</label><input class="form-input" type="number" id="op-prob" placeholder="50" min="0" max="100"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Etapa</label>
+          <select class="form-input" id="op-etapa"><option>Prospecto</option><option>Contactado</option><option>Propuesta</option><option>Negociación</option><option>Cerrado</option><option>Perdido</option></select>
+        </div>
+        <div class="form-row"><label class="form-label">Cierre estimado</label><input class="form-input" type="date" id="op-cierre"></div>
+      </div>
+      <div class="form-row"><label class="form-label">Notas</label><textarea class="form-input" id="op-notas" placeholder="Detalles, condiciones, requisitos especiales..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-oportunidad')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveOportunidad()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tarea -->
+<div class="modal-overlay" id="modal-tarea">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Nueva tarea</span><button class="icon-btn" onclick="closeModal('modal-tarea')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label">Descripción *</label><input class="form-input" id="t-titulo" placeholder="¿Qué hay que hacer?"></div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Fecha límite</label><input class="form-input" type="date" id="t-fecha"></div>
+        <div class="form-row"><label class="form-label">Prioridad</label>
+          <select class="form-input" id="t-prior"><option value="alta">Alta</option><option value="media" selected>Media</option><option value="baja">Baja</option></select>
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Relacionado con (país)</label><input class="form-input" id="t-pais" placeholder="País"></div>
+        <div class="form-row"><label class="form-label">Asignado a</label><input class="form-input" id="t-asignado" placeholder="Nombre"></div>
+      </div>
+      <div class="form-row"><label class="form-label">Notas</label><textarea class="form-input" id="t-notas" style="min-height:60px" placeholder="Detalle adicional..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-tarea')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveTarea()">Guardar tarea</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Alerta / Documento -->
+<div class="modal-overlay" id="modal-documento">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Agregar documento</span><button class="icon-btn" onclick="closeModal('modal-documento')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label">Nombre / descripción *</label><input class="form-input" id="d-nombre" placeholder="Ej: Certificado fitosanitario SENASA #44812"></div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Tipo</label>
+          <select class="form-input" id="d-tipo"><option>Invoice</option><option>Bill of Lading</option><option>Packing List</option><option>Certificado fitosanitario</option><option>Certificado de origen</option><option>Contrato</option><option>Otro</option></select>
+        </div>
+        <div class="form-row"><label class="form-label">Estado</label>
+          <select class="form-input" id="d-estado"><option>Vigente</option><option>Por vencer</option><option>Vencido</option></select>
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">País / Contacto</label><input class="form-input" id="d-pais" placeholder="País o empresa"></div>
+        <div class="form-row"><label class="form-label">Fecha de vencimiento</label><input class="form-input" type="date" id="d-vencimiento"></div>
+      </div>
+      <div class="form-row"><label class="form-label">Número / referencia</label><input class="form-input" id="d-numero" placeholder="Número de documento o referencia"></div>
+      <div class="form-row"><label class="form-label">Notas</label><textarea class="form-input" id="d-notas" style="min-height:60px"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-documento')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveDocumento()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Muestra -->
+<div class="modal-overlay" id="modal-muestra">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Registrar muestra</span><button class="icon-btn" onclick="closeModal('modal-muestra')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label">Producto / descripción *</label><input class="form-input" id="mu-producto" placeholder="Ej: Tapas Don Yeyo x 12u + Pastas DeViano x 6u"></div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Destinatario</label><input class="form-input" id="mu-destinatario" placeholder="Nombre contacto"></div>
+        <div class="form-row"><label class="form-label">País</label><input class="form-input" id="mu-pais" placeholder="País"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Fecha de envío</label><input class="form-input" type="date" id="mu-fecha"></div>
+        <div class="form-row"><label class="form-label">Resultado</label>
+          <select class="form-input" id="mu-resultado"><option>Pendiente</option><option>En evaluación</option><option>Positivo → pedido</option><option>Negativo</option></select>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">Costo estimado (USD)</label><input class="form-input" type="number" id="mu-costo" placeholder="0"></div>
+      <div class="form-row"><label class="form-label">Notas / feedback</label><textarea class="form-input" id="mu-notas" style="min-height:60px" placeholder="Feedback del cliente, observaciones..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-muestra')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveMuestra()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Comunicación -->
+<div class="modal-overlay" id="modal-comunicacion">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Registrar comunicación</span><button class="icon-btn" onclick="closeModal('modal-comunicacion')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Tipo</label>
+          <select class="form-input" id="com-tipo"><option>Email</option><option>Llamada</option><option>WhatsApp</option><option>Reunión</option><option>Videollamada</option></select>
+        </div>
+        <div class="form-row"><label class="form-label">Fecha</label><input class="form-input" type="date" id="com-fecha"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Contacto</label><input class="form-input" id="com-contacto" placeholder="Nombre"></div>
+        <div class="form-row"><label class="form-label">País</label><input class="form-input" id="com-pais" placeholder="País"></div>
+      </div>
+      <div class="form-row"><label class="form-label">Asunto / tema</label><input class="form-input" id="com-asunto" placeholder="¿De qué se trató?"></div>
+      <div class="form-row"><label class="form-label">Resumen</label><textarea class="form-input" id="com-resumen" placeholder="Qué se dijo, compromisos, decisiones..."></textarea></div>
+      <div class="form-row"><label class="form-label">Próximo paso</label><input class="form-input" id="com-proximo" placeholder="Ej: Responder con oferta formal el lunes"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-comunicacion')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveComunicacion()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal País -->
+<div class="modal-overlay" id="modal-pais">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Agregar país destino</span><button class="icon-btn" onclick="closeModal('modal-pais')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">País *</label><input class="form-input" id="p-nombre" placeholder="Ej: Brasil"></div>
+        <div class="form-row"><label class="form-label">Emoji bandera</label><input class="form-input" id="p-bandera" placeholder="🇧🇷"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Arancel principal (%)</label><input class="form-input" id="p-arancel" placeholder="Ej: 18"></div>
+        <div class="form-row"><label class="form-label">Incoterm habitual</label><input class="form-input" id="p-incoterm" placeholder="Ej: CIF Santos"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Posición arancelaria</label><input class="form-input" id="p-ncm" placeholder="Ej: NCM 1902.19"></div>
+        <div class="form-row"><label class="form-label">Moneda local</label><input class="form-input" id="p-moneda" placeholder="Ej: BRL"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Tipo de cambio (vs USD)</label><input class="form-input" type="number" step="0.0001" id="p-tipocambio" placeholder="Ej: 5.05 BRL/USD"></div>
+        <div class="form-row"><label class="form-label">Fecha tipo de cambio</label><input class="form-input" type="date" id="p-tc-fecha"></div>
+      </div>
+      <div class="form-row"><label class="form-label">Organismo sanitario regulador</label><input class="form-input" id="p-sanitario" placeholder="Ej: ANVISA (Brasil), SENASICA (México), FDA (EEUU)"></div>
+      <div class="form-row"><label class="form-label">Requisitos de habilitación sanitaria</label><textarea class="form-input" id="p-sanitario-req" style="min-height:50px" placeholder="Ej: Registro de producto ante ANVISA, presentar análisis microbiológico..."></textarea></div>
+      <div class="form-row"><label class="form-label">Requisitos de etiquetado</label><textarea class="form-input" id="p-etiquetado" style="min-height:60px" placeholder="Ej: Idioma portugués, Nutriscore, declaraciones alérgenos..."></textarea></div>
+      <div class="form-row"><label class="form-label">Notas / acceso al mercado</label><textarea class="form-input" id="p-notas" style="min-height:60px" placeholder="Acuerdos comerciales, restricciones, contactos institucionales..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-pais')">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePais()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Precio competidor -->
+<div class="modal-overlay" id="modal-precio">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Registrar precio de competidor</span><button class="icon-btn" onclick="closeModal('modal-precio')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label">Competidor / marca *</label><input class="form-input" id="pr-competidor" placeholder="Ej: Matarazzo, La Saltena, genérico..."></div>
+      <div class="form-row"><label class="form-label">Descripción del producto</label><input class="form-input" id="pr-producto" placeholder="Ej: Tapas de empanadas x 12u 500g"></div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">País</label><input class="form-input" id="pr-pais" placeholder="País"></div>
+        <div class="form-row"><label class="form-label">Categoría</label>
+          <select class="form-input" id="pr-categoria"><option>Tapas</option><option>Pastas</option><option>Panificados</option><option>Tortillas</option><option>Otro</option></select>
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Precio</label><input class="form-input" type="number" step="0.01" id="pr-precio" placeholder="0.00" oninput="calcPrecioKg()"></div>
+        <div class="form-row"><label class="form-label">Moneda / unidad</label><input class="form-input" id="pr-unidad" placeholder="Ej: USD/kg, BRL/paq"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Peso neto del envase (kg)</label><input class="form-input" type="number" step="0.001" id="pr-peso" placeholder="Ej: 0.500" oninput="calcPrecioKg()"></div>
+        <div class="form-row"><label class="form-label">Precio / kg (calculado)</label><input class="form-input" id="pr-precio-kg" placeholder="Se calcula automáticamente" readonly style="background:var(--gray-50);color:var(--blue);font-weight:500"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Fuente</label><input class="form-input" id="pr-fuente" placeholder="Ej: visita feria, web, importador..."></div>
+        <div class="form-row"><label class="form-label">Fecha</label><input class="form-input" type="date" id="pr-fecha"></div>
+      </div>
+      <div class="form-row"><label class="form-label">Notas</label><textarea class="form-input" id="pr-notas" style="min-height:60px" placeholder="Canal (retail, food service), observaciones..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-precio')">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePrecio()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tendencia -->
+<div class="modal-overlay" id="modal-tendencia">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Agregar nota de inteligencia</span><button class="icon-btn" onclick="closeModal('modal-tendencia')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label">Título *</label><input class="form-input" id="tr-titulo" placeholder="Ej: Crecimiento del mercado free-gluten en México"></div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">País / Región</label><input class="form-input" id="tr-pais" placeholder="País o región"></div>
+        <div class="form-row"><label class="form-label">Categoría</label>
+          <select class="form-input" id="tr-categoria"><option>Tendencia de consumo</option><option>Regulación / normativa</option><option>Competencia</option><option>Logística / costos</option><option>Oportunidad</option><option>Riesgo</option></select>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">Descripción</label><textarea class="form-input" id="tr-descripcion" placeholder="Detalle de la tendencia, datos, fuentes..."></textarea></div>
+      <div class="form-row"><label class="form-label">Fuente</label><input class="form-input" id="tr-fuente" placeholder="Ej: Informe USDA, Feria Anuga, contacto local..."></div>
+      <div class="form-row"><label class="form-label">Etiquetas</label><input class="form-input" id="tr-tags" placeholder="Ej: pasta, gluten-free, Europa (separadas por coma)"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-tendencia')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveTendencia()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Cobranza -->
+<div class="modal-overlay" id="modal-cobranza">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Nueva operación de cobranza</span><button class="icon-btn" onclick="closeModal('modal-cobranza')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label">Operación / descripción *</label><input class="form-input" id="cob-desc" placeholder="Ej: Invoice #2025-089 — Tapas Don Yeyo"></div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Cliente / Empresa</label><input class="form-input" id="cob-cliente" placeholder="Nombre importador"></div>
+        <div class="form-row"><label class="form-label">País</label><input class="form-input" id="cob-pais" placeholder="País destino"></div>
+      </div>
+      <div class="form-grid-3">
+        <div class="form-row"><label class="form-label">Monto total (USD)</label><input class="form-input" type="number" id="cob-monto" placeholder="0" oninput="calcSaldoCob()"></div>
+        <div class="form-row"><label class="form-label">Monto cobrado (USD)</label><input class="form-input" type="number" id="cob-cobrado-monto" placeholder="0" oninput="calcSaldoCob()"></div>
+        <div class="form-row"><label class="form-label">Saldo (USD)</label><input class="form-input" id="cob-saldo" placeholder="0" readonly style="background:var(--gray-50);font-weight:500"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Unidades exportadas</label><input class="form-input" type="number" id="cob-unidades" placeholder="0"></div>
+        <div class="form-row"><label class="form-label">Marca</label>
+          <select class="form-input" id="cob-marca"><option>Don Yeyo</option><option>DeViano</option><option>Ambas</option></select>
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Fecha de embarque</label><input class="form-input" type="date" id="cob-embarque"></div>
+        <div class="form-row"><label class="form-label">Fecha vencimiento cobro</label><input class="form-input" type="date" id="cob-vencimiento"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Estado</label>
+          <select class="form-input" id="cob-estado"><option>Pendiente</option><option>Cobrado parcial</option><option>Cobrado</option><option>Vencido</option></select>
+        </div>
+        <div class="form-row"><label class="form-label">Condición de pago</label>
+          <select class="form-input" id="cob-condicion"><option>Carta de crédito</option><option>Transferencia anticipada</option><option>Cobranza documentaria</option><option>Cuenta corriente</option><option>Otro</option></select>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">Notas</label><textarea class="form-input" id="cob-notas" style="min-height:60px" placeholder="Referencias, número de carta de crédito, banco, etc."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-cobranza')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCobranza()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== SECURITY: XSS escape ==========
+function esc(str) {
+  if(str===null||str===undefined) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#x27;')
+    .replace(/`/g,'&#x60;');
+}
+
+// ========== SECURITY: Crypto helpers ==========
+async function sha256(msg) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function deriveKey(password, saltHex) {
+  const salt = new Uint8Array(saltHex.match(/.{2}/g).map(h=>parseInt(h,16)));
+  const km = await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+
+async function encryptData(plain, password, saltHex) {
+  const key = await deriveKey(password, saltHex);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(plain));
+  const toHex = arr => Array.from(new Uint8Array(arr)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  return toHex(iv)+':'+toHex(enc);
+}
+
+async function decryptData(cipher, password, saltHex) {
+  try {
+    const [ivHex,dataHex] = cipher.split(':');
+    const iv = new Uint8Array(ivHex.match(/.{2}/g).map(h=>parseInt(h,16)));
+    const data = new Uint8Array(dataHex.match(/.{2}/g).map(h=>parseInt(h,16)));
+    const key = await deriveKey(password, saltHex);
+    const dec = await crypto.subtle.decrypt({name:'AES-GCM',iv},key,data);
+    return new TextDecoder().decode(dec);
+  } catch(e){ return null; }
+}
+
+// ========== AUTH SYSTEM ==========
+let SESSION = null;
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 15*60*1000;
+
+function getAuthStore() {
+  try { return JSON.parse(localStorage.getItem('crm_auth')||'null'); } catch(e){ return null; }
+}
+function setAuthStore(data) { localStorage.setItem('crm_auth',JSON.stringify(data)); }
+
+async function initAuth() {
+  let store = getAuthStore();
+  if(!store) {
+    const salt = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const pwHash = await sha256('Admin2024!'+salt);
+    store = { salt, users:[{username:'admin',pwHash,role:'admin',createdAt:Date.now()}] };
+    setAuthStore(store);
+  }
+  // Auto login instantaneo de admin
+  SESSION = {username:'admin', role:'admin', passwordRaw:'Admin2024!', salt:store.salt};
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('sidebar-username').textContent = 'admin';
+  document.getElementById('sidebar-role').textContent = 'Administrador';
+  document.getElementById('btn-admin').style.display='flex';
+  await updateBadges();
+  await renderDashboard();
+}
+
+async function doLogin() {
+  const username = document.getElementById('login-user').value.trim().toLowerCase();
+  const password = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  const attEl = document.getElementById('login-attempts');
+  const btn = document.getElementById('login-btn');
+
+  const lockKey = 'crm_lock_'+username;
+  const lockData = JSON.parse(localStorage.getItem(lockKey)||'{"attempts":0,"lockedUntil":0}');
+  if(lockData.lockedUntil > Date.now()) {
+    const mins = Math.ceil((lockData.lockedUntil-Date.now())/60000);
+    errEl.textContent = 'Cuenta bloqueada. Intentalo en '+mins+' min.';
+    return;
+  }
+  if(!username||!password){ errEl.textContent='Completá usuario y contraseña.'; return; }
+  btn.textContent='Verificando...'; btn.disabled=true;
+
+  const store = getAuthStore();
+  const user = store.users.find(u=>u.username===username);
+  const pwHash = await sha256(password+store.salt);
+  const match = user && user.pwHash===pwHash;
+
+  if(!match) {
+    lockData.attempts=(lockData.attempts||0)+1;
+    if(lockData.attempts>=MAX_ATTEMPTS){
+      lockData.lockedUntil=Date.now()+LOCKOUT_MS; lockData.attempts=0;
+      errEl.textContent='Demasiados intentos. Bloqueado 15 min.';
+    } else {
+      errEl.textContent='Usuario o contraseña incorrectos.';
+      attEl.textContent=(MAX_ATTEMPTS-lockData.attempts)+' intento(s) restante(s).';
+    }
+    localStorage.setItem(lockKey,JSON.stringify(lockData));
+    btn.textContent='Ingresar'; btn.disabled=false;
+    return;
+  }
+
+  localStorage.removeItem(lockKey);
+  SESSION = {username:user.username, role:user.role, passwordRaw:password, salt:store.salt};
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('sidebar-username').textContent = esc(user.username);
+  const roleLabels = {admin:'Administrador',editor:'Editor',viewer:'Solo lectura'};
+  document.getElementById('sidebar-role').textContent = roleLabels[user.role]||user.role;
+  if(user.role==='admin') document.getElementById('btn-admin').style.display='flex';
+  if(user.role==='viewer') {
+    document.getElementById('viewer-notice').classList.add('show');
+    document.getElementById('topbar-btn').classList.add('locked-btn');
+  }
+  btn.textContent='Ingresar'; btn.disabled=false;
+  errEl.textContent=''; attEl.textContent='';
+  await updateBadges();
+  await renderDashboard();
+}
+
+function doLogout() {
+  SESSION=null;
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-pass').value='';
+  document.getElementById('login-error').textContent='';
+  document.getElementById('login-attempts').textContent='';
+  document.getElementById('btn-admin').style.display='none';
+  document.getElementById('viewer-notice').classList.remove('show');
+  document.getElementById('topbar-btn').classList.remove('locked-btn');
+  document.getElementById('sidebar-username').textContent='—';
+  document.getElementById('sidebar-role').textContent='—';
+}
+
+function requireRole(...roles) {
+  if(!SESSION){ toast('Sesion no iniciada'); return false; }
+  if(!roles.includes(SESSION.role)){ toast('Sin permisos para esta accion'); return false; }
+  return true;
+}
+
+function openAdminPanel() {
+  if(!requireRole('admin')) return;
+  renderAdminUsers();
+  openModal('modal-admin');
+}
+
+function renderAdminUsers() {
+  const store = getAuthStore();
+  if(!store) return;
+  const roleColors = {admin:'badge-red',editor:'badge-blue',viewer:'badge-gray'};
+  const roleLabels = {admin:'Admin',editor:'Editor',viewer:'Viewer'};
+  document.getElementById('admin-user-list').innerHTML = store.users.map(u=>
+    '<div class="admin-user-row">'
+    +'<div class="avatar av-blue">'+esc(u.username.slice(0,2).toUpperCase())+'</div>'
+    +'<div style="flex:1"><div style="font-weight:500;font-size:13px">'+esc(u.username)+'</div></div>'
+    +'<span class="badge '+(roleColors[u.role]||'badge-gray')+'">'+esc(roleLabels[u.role]||u.role)+'</span>'
+    +(u.username!==SESSION.username
+      ? '<button class="btn btn-ghost btn-sm" onclick="deleteUser(this.getAttribute(\'data-u\'))" data-u="'+esc(u.username)+'">Eliminar</button>'
+      : '<span style="font-size:11px;color:var(--text-hint)">Vos</span>')
+    +'</div>'
+  ).join('');
+}
+
+async function addUser() {
+  if(!requireRole('admin')) return;
+  const username = document.getElementById('new-user').value.trim().toLowerCase();
+  const password = document.getElementById('new-pass').value;
+  const role = document.getElementById('new-role').value;
+  if(!username||!password){ toast('Completá usuario y contraseña'); return; }
+  if(password.length<8){ toast('La contraseña debe tener al menos 8 caracteres'); return; }
+  if(!/^[a-z0-9._-]+$/.test(username)){ toast('Usuario: solo letras, numeros, puntos y guiones'); return; }
+  const store = getAuthStore();
+  if(store.users.find(u=>u.username===username)){ toast('Ese usuario ya existe'); return; }
+  const pwHash = await sha256(password+store.salt);
+  store.users.push({username,pwHash,role,createdAt:Date.now()});
+  setAuthStore(store);
+  document.getElementById('new-user').value='';
+  document.getElementById('new-pass').value='';
+  renderAdminUsers();
+  toast('Usuario creado correctamente');
+}
+
+function deleteUser(username) {
+  if(!requireRole('admin')) return;
+  if(username===SESSION.username){ toast('No podes eliminarte a vos mismo'); return; }
+  if(!confirm('Eliminar usuario '+username+'?')) return;
+  const store = getAuthStore();
+  store.users = store.users.filter(u=>u.username!==username);
+  setAuthStore(store);
+  renderAdminUsers();
+  toast('Usuario eliminado');
+}
+
+async function changePassword() {
+  const oldPass = document.getElementById('chg-old').value;
+  const newPass = document.getElementById('chg-new').value;
+  if(!oldPass||!newPass){ toast('Completá ambos campos'); return; }
+  if(newPass.length<8){ toast('La nueva contraseña debe tener al menos 8 caracteres'); return; }
+  const store = getAuthStore();
+  const oldHash = await sha256(oldPass+store.salt);
+  const user = store.users.find(u=>u.username===SESSION.username);
+  if(!user||user.pwHash!==oldHash){ toast('Contraseña actual incorrecta'); return; }
+  user.pwHash = await sha256(newPass+store.salt);
+  setAuthStore(store);
+  document.getElementById('chg-old').value='';
+  document.getElementById('chg-new').value='';
+  toast('Contraseña actualizada. Volvé a ingresar.');
+  setTimeout(doLogout,1500);
+}
+
+// ========== DATA LAYER (AES-GCM encrypted) ==========
+const DB = {
+  _k(k){ return 'crm_data_'+k; },
+
+  async get(k) {
+    try {
+      const raw = localStorage.getItem(this._k(k));
+      if(!raw||!SESSION) return [];
+      if(raw.startsWith('[')) return JSON.parse(raw); // unencrypted legacy
+      const dec = await decryptData(raw, SESSION.passwordRaw, SESSION.salt);
+      return dec ? JSON.parse(dec) : [];
+    } catch(e){ return []; }
+  },
+
+  async set(k,val) {
+    if(!SESSION) return;
+    const enc = await encryptData(JSON.stringify(val), SESSION.passwordRaw, SESSION.salt);
+    localStorage.setItem(this._k(k), enc);
+  },
+
+  async add(k,val) {
+    const a = await this.get(k);
+    val.id = Date.now();
+    val._by = SESSION ? SESSION.username : '?';
+    a.unshift(val);
+    await this.set(k,a);
+    return val;
+  },
+
+  async del(k,id) {
+    const a = await this.get(k);
+    await this.set(k, a.filter(x=>x.id!=id));
+  }
+};
+
+// ========== NAVIGATION ==========
+function nav(panel, el) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-'+panel).classList.add('active');
+  if(el) el.classList.add('active');
+  const titles = {dashboard:'Dashboard',tareas:'Tareas',alertas:'Alertas',contactos:'Contactos',visitas:'Visitas',oportunidades:'Oportunidades',muestras:'Muestras',paises:'Países',documentos:'Documentos',inteligencia:'Inteligencia de mercado',calculadora:'Calculadora de costos',cobranzas:'Cobranzas'};
+  document.getElementById('topbar-title').textContent = titles[panel]||panel;
+  render(panel);
+}
+
+function newAction() {
+  const p = document.querySelector('.panel.active').id.replace('panel-','');
+  const m = {dashboard:'modal-visita',contactos:'modal-contacto',visitas:'modal-visita',oportunidades:'modal-oportunidad',tareas:'modal-tarea',alertas:'modal-documento',muestras:'modal-muestra',paises:'modal-pais',documentos:'modal-documento',inteligencia:'modal-precio',calculadora:null};
+  if(m[p]) openModal(m[p]);
+}
+
+async function render(panel) {
+  const fn = {dashboard:renderDashboard,contactos:renderContactos,visitas:renderVisitas,oportunidades:renderOportunidades,tareas:renderTareas,alertas:renderAlertas,muestras:renderMuestras,paises:renderPaises,documentos:renderDocumentos,inteligencia:renderInteligencia,calculadora:renderCalculos,cobranzas:renderCobranzas};
+  if(fn[panel]) await fn[panel]();
+}
+
+// ========== MODAL ==========
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open')); });
+
+// ========== TABS ==========
+async function switchTab(el, panelId) {
+  const parent = el.closest('.panel');
+  parent.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  parent.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+  if(panelId==='tab-comunicaciones') renderComunicaciones();
+  if(panelId==='tab-muestras') renderMuestras();
+  if(panelId==='tab-tendencias') renderTendencias();
+  if(panelId==='tab-precios') renderPrecios();
+}
+
+// ========== HELPERS ==========
+function fmtDate(d) { if(!d) return '—'; const dt=new Date(d+'T12:00'); return dt.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}); }
+function today() { return new Date().toISOString().split('T')[0]; }
+function daysFrom(d) { if(!d) return 9999; return Math.round((new Date(d+'T12:00')-new Date())/(1000*60*60*24)); }
+function initials(name) { return (name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+function avatarColor(name) { const cols=['av-blue','av-green','av-amber','av-purple','av-red']; return cols[(name||'').charCodeAt(0)%cols.length]; }
+function badge(text, color) { return `<span class="badge badge-${color}">${text}</span>`; }
+function etapaBadge(e) { const m={Prospecto:'gray',Contactado:'blue',Propuesta:'amber',Negociación:'purple',Cerrado:'green',Perdido:'red'}; return badge(e,m[e]||'gray'); }
+function estadoBadge(e) { const m={Activo:'green',Prospecto:'gray','En proceso':'amber',Inactivo:'red',Vigente:'green','Por vencer':'amber',Vencido:'red',Realizada:'green',Planificada:'blue',Cancelada:'red',Pendiente:'gray','En evaluación':'amber','Positivo → pedido':'green',Negativo:'red'}; return badge(e,m[e]||'gray'); }
+function toast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+function focusSearch() {}
+
+// ========== ALERTAS ENGINE ==========
+async function getAlertas() {
+  const alertas = [];
+  const today_ = new Date();
+  
+  // Documentos por vencer
+  await DB.get('documentos').forEach(d => {
+    if(!d.vencimiento) return;
+    const dias = daysFrom(d.vencimiento);
+    if(dias <= 30 && dias >= -5) {
+      alertas.push({
+        tipo: 'Documento',
+        icono: '📄',
+        titulo: d.nombre,
+        detalle: `Vence ${fmtDate(d.vencimiento)} · ${d.pais}`,
+        dias,
+        color: dias < 0 ? 'red' : dias <= 7 ? 'red' : 'amber'
+      });
+    }
+  });
+
+  // Visitas próximas (dentro de 14 días)
+  await (await DB.get('visitas')).forEach(v => {
+    if(v.estado !== 'Planificada' || !v.fecha) return;
+    const dias = daysFrom(v.fecha);
+    if(dias >= 0 && dias <= 14) {
+      alertas.push({tipo:'Visita',icono:'📅',titulo:v.titulo,detalle:`${fmtDate(v.fecha)} · ${esc(v.lugar||'')}`,dias,color:'blue'});
+    }
+  });
+
+  return alertas.sort((a,b)=>a.dias-b.dias);
+}
+
+// ========== DASHBOARD ==========
+async function renderDashboard() {
+  const contactos = await DB.get('contactos');
+  const ops = await DB.get('oportunidades');
+  const tareasAll = await DB.get('tareas');
+  const tareas = tareasAll.filter(t=>t.status!=='hecha');
+  const paises = await DB.get('paises');
+  const alertas = await getAlertas();
+  const cobranzas = await DB.get('cobranzas');
+
+  document.getElementById('m-paises').textContent = paises.length;
+  document.getElementById('m-contactos').textContent = contactos.length;
+  const pipeline = ops.filter(o=>o.etapa!=='Cerrado'&&o.etapa!=='Perdido').reduce((s,o)=>s+parseFloat(o.monto||0),0);
+  document.getElementById('m-pipeline').textContent = '$' + pipeline.toLocaleString('es-AR');
+  const vencidas = tareas.filter(t=>t.fecha && daysFrom(t.fecha) < 0);
+  document.getElementById('m-tareas').textContent = vencidas.length;
+
+  // Badges sidebar
+  document.getElementById('badge-tareas').textContent = tareas.length;
+  document.getElementById('badge-alertas').textContent = alertas.length;
+
+  // === VOLUMEN EXPORTACIÓN ===
+  const yearFilter = (document.getElementById('dash-year-filter')||{value:''}).value;
+  const curYear = new Date().getFullYear();
+  let cobFilt = cobranzas;
+  if(yearFilter !== 'all') cobFilt = cobranzas.filter(c=>{ const yr = c.embarque ? new Date(c.embarque).getFullYear() : null; return yr === curYear; });
+  const totalUnidades = cobFilt.reduce((s,c)=>s+parseFloat(c.unidades||0),0);
+  const totalValor = cobFilt.filter(c=>c.estado==='Cobrado'||c.estado==='Cobrado parcial').reduce((s,c)=>s+parseFloat(c.monto||0),0);
+  const totalVencido = cobranzas.filter(c=>c.estado==='Vencido').reduce((s,c)=>s+(parseFloat(c.monto||0)-parseFloat(c['cobrado-monto']||0)),0);
+
+  const expU = document.getElementById('dash-exp-unidades');
+  if(expU) expU.textContent = totalUnidades.toLocaleString('es-AR');
+  const expV = document.getElementById('dash-exp-valor');
+  if(expV) expV.textContent = '$' + totalValor.toLocaleString('es-AR',{minimumFractionDigits:0});
+  const cobVen = document.getElementById('dash-cob-vencido');
+  if(cobVen) cobVen.textContent = '$' + totalVencido.toLocaleString('es-AR',{minimumFractionDigits:0});
+
+  // Desglose por país
+  const byPais = {};
+  cobFilt.forEach(c => {
+    if(!c.pais) return;
+    if(!byPais[c.pais]) byPais[c.pais] = {unidades:0, valor:0};
+    byPais[c.pais].unidades += parseFloat(c.unidades||0);
+    byPais[c.pais].valor += parseFloat(c.monto||0);
+  });
+  const paisBreak = document.getElementById('dash-pais-breakdown');
+  if(paisBreak) {
+    const entries = Object.entries(byPais).sort((a,b)=>b[1].valor-a[1].valor);
+    if(!entries.length) {
+      paisBreak.innerHTML = '<div class="empty" style="padding:12px"><div class="empty-icon">📦</div><div class="empty-text" style="font-size:12px">Registrá exportaciones en Cobranzas para ver el desglose por país.</div></div>';
+    } else {
+      const maxVal = Math.max(...entries.map(e=>e[1].valor));
+      paisBreak.innerHTML = entries.map(([pais, dat]) => {
+        const pct = maxVal > 0 ? Math.round(dat.valor/maxVal*100) : 0;
+        const paisData = paises.find(p=>p.nombre===pais);
+        const flag = paisData ? paisData.bandera : '🌐';
+        return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">'
+          +'<span style="font-size:18px;width:24px">'+esc(flag)+'</span>'
+          +'<div style="width:110px;font-size:13px;font-weight:500;color:var(--text)">'+esc(pais)+'</div>'
+          +'<div style="flex:1"><div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%"></div></div></div>'
+          +'<div style="text-align:right;min-width:120px">'
+          +'<div style="font-size:13px;font-weight:500;color:var(--navy)">$'+dat.valor.toLocaleString('es-AR',{minimumFractionDigits:0})+'</div>'
+          +'<div style="font-size:11px;color:var(--text-muted)">'+dat.unidades.toLocaleString()+' u</div>'
+          +'</div></div>';
+      }).join('');
+    }
+  }
+
+  // Alertas dashboard
+  const da = document.getElementById('dash-alertas');
+  if(alertas.length===0) { da.innerHTML='<div class="empty" style="padding:16px"><div class="empty-icon">✅</div><div class="empty-text" style="font-size:12px">Sin alertas críticas</div></div>'; }
+  else { da.innerHTML = alertas.slice(0,4).map(a=>'<div class="alert alert-'+a.color+'"><span class="alert-icon">'+a.icono+'</span><div><div style="font-weight:500;font-size:13px">'+esc(a.titulo)+'</div><div style="font-size:12px">'+esc(a.detalle)+'</div></div></div>').join(''); }
+
+  // Visitas dashboard
+  const visitasAll = await DB.get('visitas');
+  const visitas = visitasAll.filter(v=>v.estado==='Planificada'&&v.fecha>=today()).sort((a,b)=>a.fecha>b.fecha?1:-1);
+  const dv = document.getElementById('dash-visitas');
+  if(visitas.length===0) { dv.innerHTML='<div class="empty" style="padding:16px"><div class="empty-icon">📅</div><div class="empty-text" style="font-size:12px">Sin visitas planificadas</div></div>'; }
+  else { dv.innerHTML = visitas.slice(0,4).map(v=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px"><div><span style="font-weight:500">'+esc(v.titulo)+'</span><br><span style="font-size:12px;color:var(--text-muted)">'+esc(v.lugar||'')+(v.tipo==='Ronda de negocios'?' 🤝 Ronda':'')+'</span></div>'+badge(fmtDate(v.fecha),'blue')+'</div>').join(''); }
+
+  // Funnel
+  const etapas = ['Prospecto','Contactado','Propuesta','Negociación','Cerrado'];
+  etapas.forEach((e,i)=>{
+    const col = document.getElementById('f-'+(i+1));
+    const items = ops.filter(o=>o.etapa===e);
+    col.innerHTML = items.length===0 ? '<div style="font-size:11px;color:var(--text-hint);text-align:center;padding:8px">—</div>' :
+      items.map(o=>'<div class="funnel-card"><div class="fcard-name">'+esc(o.nombre)+'</div><div class="fcard-meta">$'+parseFloat(o.monto||0).toLocaleString()+'</div></div>').join('');
+  });
+
+  // Actividad reciente
+  const acts = [];
+  (await DB.get('visitas')).forEach(v=>acts.push({ts:v.id,icon:'📅',text:'Visita: '+v.titulo+(v.tipo==='Ronda de negocios'?' 🤝':'')}));
+  (await DB.get('contactos')).forEach(c=>acts.push({ts:c.id,icon:'👤',text:'Contacto: '+c.nombre+' '+(c.apellido||'')+' ('+( c.pais||'')+')'}));
+  (await DB.get('oportunidades')).forEach(o=>acts.push({ts:o.id,icon:'💼',text:'Oportunidad: '+o.nombre+' — '+etapaBadge(o.etapa)}));
+  (await DB.get('comunicaciones')).forEach(c=>acts.push({ts:c.id,icon:'💬',text:c.tipo+': '+c.asunto+' con '+(c.contacto||'')}));
+  (await DB.get('cobranzas')).forEach(c=>acts.push({ts:c.id,icon:'💰',text:'Cobranza: '+c.desc+' — '+(c.estado||'')}));
+  acts.sort((a,b)=>b.ts-a.ts);
+  const da2 = document.getElementById('dash-actividad');
+  if(acts.length===0) { da2.innerHTML='<div class="empty" style="padding:16px"><div class="empty-text" style="font-size:12px">Sin actividad aún. Comenzá registrando un contacto o visita.</div></div>'; }
+  else { da2.innerHTML = acts.slice(0,8).map(a=>'<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px"><span>'+a.icon+'</span><span>'+esc(a.text)+'</span></div>').join(''); }
+}
+
+// ========== CONTACTOS ==========
+async function renderContactos() {
+  const q = (document.getElementById('search-contacto')||{value:''}).value.toLowerCase();
+  const fp = (document.getElementById('filter-pais-contacto')||{value:''}).value;
+  const fr = (document.getElementById('filter-rol-contacto')||{value:''}).value;
+  let data = await DB.get('contactos');
+  if(q) data = data.filter(c=>(c.nombre+' '+c.apellido+' '+c.empresa).toLowerCase().includes(q));
+  if(fp) data = data.filter(c=>c.pais===fp);
+  if(fr) data = data.filter(c=>c.rol===fr);
+
+  // Populate pais filter
+  const paisSel = document.getElementById('filter-pais-contacto');
+  if(paisSel && paisSel.options.length<=1) {
+    const paises = [...new Set(await DB.get('contactos').map(c=>c.pais).filter(Boolean))];
+    paises.forEach(p=>{ const o=document.createElement('option'); o.value=p; o.text=p; paisSel.appendChild(o); });
+  }
+
+  const tbody = document.getElementById('tbody-contactos');
+  if(!data.length) { tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-icon">👥</div><div class="empty-text">Sin contactos. Agregá el primero.</div></div></td></tr>`; return; }
+  tbody.innerHTML = data.map(c=>`
+    <tr class="clickable">
+      <td><div style="display:flex;align-items:center;gap:8px"><div class="avatar ${avatarColor(c.nombre)}">${initials(c.nombre+(c.apellido?' '+c.apellido:''))}</div><span style="font-weight:500">${esc(c.nombre)} ${esc(c.apellido||'')}</span></div></td>
+      <td>${esc(c.empresa||'—')}</td>
+      <td>${esc(c.pais||'—')}</td>
+      <td><span class="badge badge-navy">${esc(c.rol||'—')}</span></td>
+      <td>${estadoBadge(c.estado||'Activo')}</td>
+      <td style="color:var(--text-muted)">${esc(c.email||'—')}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="delItem('contactos',${c.id},renderContactos)">🗑</button></td>
+    </tr>`).join('');
+}
+
+async function saveContacto() {
+  const n = document.getElementById('c-nombre').value.trim();
+  if(!n) { toast('Ingresá el nombre'); return; }
+  await DB.add('contactos',{nombre:n,apellido:v('c-apellido'),empresa:v('c-empresa'),rol:v('c-rol'),pais:v('c-pais'),ciudad:v('c-ciudad'),email:v('c-email'),telefono:v('c-telefono'),estado:v('c-estado'),notas:v('c-notas')});
+  closeModal('modal-contacto'); clearForm(['c-nombre','c-apellido','c-empresa','c-pais','c-ciudad','c-email','c-telefono','c-notas']);
+  renderContactos(); toast('Contacto guardado ✓');
+}
+
+// ========== VISITAS ==========
+async function renderVisitas() {
+  const ft = (document.getElementById('filter-tipo-visita')||{value:''}).value;
+  const fe = (document.getElementById('filter-estado-visita')||{value:''}).value;
+  let data = await DB.get('visitas');
+  if(ft) data = data.filter(v=>v.tipo===ft);
+  if(fe) data = data.filter(v=>v.estado===fe);
+  data.sort((a,b)=>a.fecha<b.fecha?1:-1);
+
+  const cont = document.getElementById('lista-visitas');
+  if(!data.length) { cont.innerHTML='<div class="empty"><div class="empty-icon">📅</div><div class="empty-text">Sin visitas. Registrá una feria o reunión.</div></div>'; return; }
+  cont.innerHTML = data.map(v=>`
+    <div style="display:flex;gap:16px;padding:14px 16px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px">
+      <div style="min-width:90px;font-size:12px;color:var(--text-muted)">${fmtDate(v.fecha)}<br><span style="font-size:11px">${esc(v.lugar||'')}</span></div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:500;margin-bottom:3px">${({'Feria internacional':'🏛','Ronda de negocios':'🤝','Reunión comercial':'💼','Visita a cliente':'🏪','Videoconferencia':'🎥'}[v.tipo]||'📅')} ${esc(v.titulo)}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">${esc(v.tipo||'')} ${v.contactos?'· '+esc(v.contactos):''}</div>
+        ${v.tipo==='Ronda de negocios'&&(v['ronda-org']||v['ronda-reuniones'])?`<div style="background:var(--blue-light);border-radius:4px;padding:6px 10px;font-size:12px;margin-bottom:6px;display:flex;gap:14px;flex-wrap:wrap">${v['ronda-org']?'<span><b>Org:</b> '+esc(v['ronda-org'])+'</span>':''}${v['ronda-reuniones']?'<span><b>Reuniones:</b> '+v['ronda-reuniones']+'</span>':''}${v['ronda-pedidos']?'<span><b>Pedidos:</b> $'+parseFloat(v['ronda-pedidos']).toLocaleString()+'</span>':''}${v['ronda-resultado']?'<span><b>Resultado:</b> '+esc(v['ronda-resultado'])+'</span>':''}</div>`:''}
+        ${v.notas?`<div style="font-size:12px;color:var(--text);background:var(--gray-50);border:1px solid var(--border);border-radius:4px;padding:5px 8px">${esc(v.notas)}</div>`:''}
+        ${v.proximo?`<div style="font-size:12px;color:var(--blue);margin-top:4px">→ ${esc(v.proximo)}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        ${estadoBadge(v.estado)}
+        ${v.tipo==='Ronda de negocios'?'<span class="badge badge-blue">🤝 Ronda</span>':''}
+        <button class="btn btn-ghost btn-sm" onclick="delItem('visitas',${v.id},renderVisitas)">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+async function saveVisita() {
+  const t = document.getElementById('v-titulo').value.trim();
+  if(!t) { toast('Ingresá el título'); return; }
+  await DB.add('visitas',{titulo:t,tipo:v('v-tipo'),estado:v('v-estado'),fecha:v('v-fecha'),lugar:v('v-lugar'),contactos:v('v-contactos'),notas:v('v-notas'),proximo:v('v-proximo'),'ronda-org':v('v-ronda-org'),'ronda-reuniones':v('v-ronda-reuniones'),'ronda-importadores':v('v-ronda-importadores'),'ronda-pedidos':v('v-ronda-pedidos'),'ronda-resultado':v('v-ronda-resultado')});
+  closeModal('modal-visita'); clearForm(['v-titulo','v-fecha','v-lugar','v-contactos','v-notas','v-proximo','v-ronda-org','v-ronda-reuniones','v-ronda-importadores','v-ronda-pedidos']);
+  renderVisitas(); toast('Visita guardada ✓');
+}
+
+// ========== OPORTUNIDADES ==========
+async function renderOportunidades() {
+  const fe = (document.getElementById('filter-etapa-op')||{value:''}).value;
+  const fm = (document.getElementById('filter-marca-op')||{value:''}).value;
+  let data = await DB.get('oportunidades');
+  if(fe) data = data.filter(o=>o.etapa===fe);
+  if(fm) data = data.filter(o=>o.marca===fm);
+
+  const tbody = document.getElementById('tbody-oportunidades');
+  if(!data.length) { tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-icon">💼</div><div class="empty-text">Sin oportunidades registradas.</div></div></td></tr>`; return; }
+  tbody.innerHTML = data.map(o=>`
+    <tr>
+      <td><div style="font-weight:500">${esc(o.nombre)}</div><div style="font-size:12px;color:var(--text-muted)">${esc(o.contacto||'')}</div></td>
+      <td>${esc(o.pais||'—')}</td>
+      <td><span class="badge badge-navy">${esc(o.marca||'—')}</span></td>
+      <td>${etapaBadge(o.etapa)}</td>
+      <td style="font-weight:500">$${parseFloat(o.monto||0).toLocaleString()}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;min-width:80px">
+          <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${o.prob||0}%"></div></div>
+          <span style="font-size:12px;color:var(--text-muted)">${o.prob||0}%</span>
+        </div>
+      </td>
+      <td style="color:var(--text-muted);font-size:12px">${fmtDate(o.cierre)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="delItem('oportunidades',${o.id},renderOportunidades)">🗑</button></td>
+    </tr>`).join('');
+}
+
+async function saveOportunidad() {
+  const n = document.getElementById('op-nombre').value.trim();
+  if(!n) { toast('Ingresá el nombre'); return; }
+  await DB.add('oportunidades',{nombre:n,pais:v('op-pais'),contacto:v('op-contacto'),marca:v('op-marca'),categoria:v('op-categoria'),monto:v('op-monto'),prob:v('op-prob'),etapa:v('op-etapa'),cierre:v('op-cierre'),notas:v('op-notas')});
+  closeModal('modal-oportunidad'); clearForm(['op-nombre','op-pais','op-contacto','op-monto','op-prob','op-cierre','op-notas']);
+  renderOportunidades(); toast('Oportunidad guardada ✓');
+}
+
+// ========== TAREAS ==========
+async function renderTareas() {
+  const fs = (document.getElementById('task-filter-status')||{value:''}).value;
+  const fp = (document.getElementById('task-filter-prior')||{value:''}).value;
+  let data = await DB.get('tareas');
+  if(fs) data = data.filter(t=>t.status===fs);
+  if(fp) data = data.filter(t=>t.prioridad===fp);
+  data.sort((a,b)=>{
+    const pa={alta:0,media:1,baja:2};
+    return (pa[a.prioridad]||1)-(pa[b.prioridad]||1);
+  });
+  const cont = document.getElementById('lista-tareas');
+  if(!data.length) { cont.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Sin tareas pendientes.</div></div>'; return; }
+  const priorBadge = p => ({ alta: badge('Alta','red'), media: badge('Media','amber'), baja: badge('Baja','gray') }[p]||badge(p,'gray'));
+  cont.innerHTML = data.map(t=>{
+    const done = t.status==='hecha';
+    const dias = t.fecha ? daysFrom(t.fecha) : null;
+    const dueClass = dias!==null && dias<0 && !done ? 'task-due' : 'task-due ok';
+    const dueText = t.fecha ? (dias<0?`Venció hace ${Math.abs(dias)}d`:`En ${dias}d · ${fmtDate(t.fecha)}`) : '';
+    return `<div class="task-item">
+      <div class="task-cb ${done?'done':''}" onclick="toggleTarea(${t.id})">${done?'✓':''}</div>
+      <div class="task-body">
+        <div class="task-title ${done?'done-text':''}">${esc(t.titulo)}</div>
+        <div class="task-meta">
+          ${priorBadge(t.prioridad)}
+          ${dueText?`<span class="${dueClass}">${dueText}</span>`:''}
+          ${t.pais?`<span>🌍 ${esc(t.pais)}</span>`:''}
+          ${t.asignado?`<span>👤 ${esc(t.asignado)}</span>`:''}
+        </div>
+        ${t.notas?`<div style="font-size:12px;color:var(--text-muted);margin-top:3px">${esc(t.notas)}</div>`:''}
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="delItem('tareas',${t.id},renderTareas)">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+async function filterTasks() { renderTareas(); }
+
+async function toggleTarea(id) {
+  const tareas = await DB.get('tareas');
+  const t = tareas.find(x=>x.id===id);
+  if(t) { t.status = t.status==='hecha' ? 'pendiente' : 'hecha'; await DB.set('tareas',tareas); }
+  renderTareas();
+  updateBadges();
+}
+
+async function saveTarea() {
+  const t = document.getElementById('t-titulo').value.trim();
+  if(!t) { toast('Ingresá la descripción'); return; }
+  await DB.add('tareas',{titulo:t,fecha:v('t-fecha'),prioridad:v('t-prior'),pais:v('t-pais'),asignado:v('t-asignado'),notas:v('t-notas'),status:'pendiente'});
+  closeModal('modal-tarea'); clearForm(['t-titulo','t-fecha','t-pais','t-asignado','t-notas']);
+  renderTareas(); updateBadges(); toast('Tarea guardada ✓');
+}
+
+// ========== ALERTAS ==========
+async function renderAlertas() {
+  const alertas = await getAlertas();
+  const cont = document.getElementById('lista-alertas');
+  if(!alertas.length) { cont.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Sin alertas activas. Todo al día.</div></div>'; return; }
+  cont.innerHTML = alertas.map(a=>`
+    <div class="alert alert-${a.color}" style="margin-bottom:8px">
+      <span class="alert-icon" style="font-size:20px">${a.icono}</span>
+      <div style="flex:1">
+        <div style="font-weight:500;font-size:14px">${esc(a.titulo)}</div>
+        <div style="font-size:13px;margin-top:2px">${esc(a.detalle)}</div>
+      </div>
+      <div style="font-size:12px;font-weight:500;white-space:nowrap">
+        ${a.dias<0?`Vencido hace ${Math.abs(a.dias)}d`:a.dias===0?'Hoy':a.dias===1?'Mañana':`En ${a.dias}d`}
+      </div>
+    </div>`).join('');
+}
+
+async function updateBadges() {
+  const tareas = await DB.get('tareas').filter(t=>t.status!=='hecha');
+  document.getElementById('badge-tareas').textContent = tareas.length;
+  document.getElementById('badge-alertas').textContent = getAlertas().length;
+}
+
+// ========== MUESTRAS ==========
+async function renderMuestras() {
+  const fr = (document.getElementById('filter-resultado-muestra')||{value:''}).value;
+  let data = await DB.get('muestras');
+  if(fr) data = data.filter(m=>m.resultado===fr);
+  const cont = document.getElementById('lista-muestras');
+  if(!data.length) { cont.innerHTML='<div class="empty"><div class="empty-icon">📦</div><div class="empty-text">Sin muestras registradas.</div></div>'; return; }
+  cont.innerHTML = data.map(m=>`
+    <div class="sample-row">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${esc(m.producto)}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${esc(m.destinatario||'')} · ${esc(m.pais||'')} · ${fmtDate(m.fecha)}</div>
+        ${m.notas?`<div style="font-size:12px;color:var(--text);margin-top:3px">${esc(m.notas)}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        ${estadoBadge(m.resultado)}
+        ${m.costo?`<span style="font-size:12px;color:var(--text-muted)">$${parseFloat(m.costo).toLocaleString()}</span>`:''}
+        <button class="btn btn-ghost btn-sm" onclick="delItem('muestras',${m.id},renderMuestras)">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+async function saveMuestra() {
+  const p = document.getElementById('mu-producto').value.trim();
+  if(!p) { toast('Ingresá el producto'); return; }
+  await DB.add('muestras',{producto:p,destinatario:v('mu-destinatario'),pais:v('mu-pais'),fecha:v('mu-fecha'),resultado:v('mu-resultado'),costo:v('mu-costo'),notas:v('mu-notas')});
+  closeModal('modal-muestra'); clearForm(['mu-producto','mu-destinatario','mu-pais','mu-fecha','mu-costo','mu-notas']);
+  renderMuestras(); toast('Muestra registrada ✓');
+}
+
+// ========== COMUNICACIONES ==========
+async function renderComunicaciones() {
+  const ft = (document.getElementById('filter-tipo-com')||{value:''}).value;
+  let data = await DB.get('comunicaciones');
+  if(ft) data = data.filter(c=>c.tipo===ft);
+  data.sort((a,b)=>a.fecha<b.fecha?1:-1);
+  const cont = document.getElementById('lista-comunicaciones');
+  if(!data.length) { cont.innerHTML='<div class="empty"><div class="empty-icon">💬</div><div class="empty-text">Sin comunicaciones registradas.</div></div>'; return; }
+  const tipoIcon = {Email:'📧',Llamada:'📞',WhatsApp:'💬',Reunión:'🤝',Videollamada:'🎥'};
+  cont.innerHTML = '<div class="timeline">'+data.map(c=>`
+    <div class="tl-item">
+      <div class="tl-dot" style="background:var(--blue-light)">${tipoIcon[c.tipo]||'💬'}</div>
+      <div class="tl-body">
+        <div class="tl-title">${esc(c.asunto)} <span class="badge badge-navy" style="margin-left:4px">${c.tipo}</span></div>
+        <div class="tl-meta">${esc(c.contacto||'')} · ${c.pais||''} · ${fmtDate(c.fecha)}</div>
+        ${c.resumen?`<div class="tl-note">${esc(c.resumen)}</div>`:''}
+        ${c.proximo?`<div style="font-size:12px;color:var(--blue);margin-top:4px">→ ${esc(c.proximo)}</div>`:''}
+        <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="delItem('comunicaciones',${c.id},renderComunicaciones)">🗑 Eliminar</button>
+      </div>
+    </div>`).join('')+'</div>';
+}
+
+async function saveComunicacion() {
+  const a = document.getElementById('com-asunto').value.trim();
+  if(!a) { toast('Ingresá el asunto'); return; }
+  await DB.add('comunicaciones',{tipo:v('com-tipo'),fecha:v('com-fecha'),contacto:v('com-contacto'),pais:v('com-pais'),asunto:a,resumen:v('com-resumen'),proximo:v('com-proximo')});
+  closeModal('modal-comunicacion'); clearForm(['com-contacto','com-pais','com-asunto','com-resumen','com-proximo']);
+  renderComunicaciones(); toast('Comunicación registrada ✓');
+}
+
+// ========== PAÍSES ==========
+async function renderPaises() {
+  const data = await DB.get('paises');
+  const cont = document.getElementById('grid-paises');
+  if(!data.length) { cont.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🌍</div><div class="empty-text">Agregá los países destino de exportación.</div></div>'; return; }
+  cont.innerHTML = data.map(p=>`
+    <div class="country-card">
+      <div class="country-flag">${esc(p.bandera||'🌐')}</div>
+      <div class="country-name">${esc(p.nombre)}</div>
+      <div style="margin-top:8px">
+        ${p.arancel?`<div class="country-row"><span class="country-row-label">Arancel</span><span class="country-row-value">${esc(p.arancel)}%</span></div>`:''}
+        ${p.incoterm?`<div class="country-row"><span class="country-row-label">Incoterm</span><span class="country-row-value">${esc(p.incoterm)}</span></div>`:''}
+        ${p.ncm?`<div class="country-row"><span class="country-row-label">Posición</span><span class="country-row-value">${esc(p.ncm)}</span></div>`:''}
+        ${p.moneda?`<div class="country-row"><span class="country-row-label">Moneda</span><span class="country-row-value">${esc(p.moneda)}</span></div>`:''}
+        ${p.tipocambio?`<div class="country-row"><span class="country-row-label">Tipo de cambio</span><span class="country-row-value">${esc(p.tipocambio)} ${esc(p.moneda||'')}/${esc('USD')}${p['tc-fecha']?' <span style=\"font-size:10px;color:var(--text-hint)\">('+fmtDate(p['tc-fecha'])+')</span>':''}</span></div>`:''}
+        ${p.sanitario?`<div class="country-row"><span class="country-row-label">Org. sanitario</span><span class="country-row-value" style="color:var(--green);font-weight:500">${esc(p.sanitario)}</span></div>`:''}
+      </div>
+      ${p['sanitario-req']?`<div style="background:var(--green-light);border-radius:4px;padding:6px 8px;font-size:11px;color:var(--green);margin-top:8px;line-height:1.4"><b>Req. sanitarios:</b> ${esc(p['sanitario-req'])}</div>`:''}
+      ${p.etiquetado?`<div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.4">${esc(p.etiquetado)}</div>`:''}
+      ${p.notas?`<div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4">${esc(p.notas)}</div>`:''}
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px;width:100%" onclick="delItem('paises',${p.id},renderPaises)">🗑 Eliminar</button>
+    </div>`).join('');
+}
+
+async function savePais() {
+  const n = document.getElementById('p-nombre').value.trim();
+  if(!n) { toast('Ingresá el nombre del país'); return; }
+  await DB.add('paises',{nombre:n,bandera:v('p-bandera'),arancel:v('p-arancel'),incoterm:v('p-incoterm'),ncm:v('p-ncm'),moneda:v('p-moneda'),tipocambio:v('p-tipocambio'),'tc-fecha':v('p-tc-fecha'),sanitario:v('p-sanitario'),'sanitario-req':v('p-sanitario-req'),etiquetado:v('p-etiquetado'),notas:v('p-notas')});
+  closeModal('modal-pais'); clearForm(['p-nombre','p-bandera','p-arancel','p-incoterm','p-ncm','p-moneda','p-tipocambio','p-tc-fecha','p-sanitario','p-sanitario-req','p-etiquetado','p-notas']);
+  renderPaises(); toast('País guardado ✓');
+}
+
+// ========== DOCUMENTOS ==========
+async function renderDocumentos() {
+  const ft = (document.getElementById('filter-tipo-doc')||{value:''}).value;
+  const fe = (document.getElementById('filter-estado-doc')||{value:''}).value;
+  let data = await DB.get('documentos');
+  if(ft) data = data.filter(d=>d.tipo===ft);
+  if(fe) data = data.filter(d=>d.estado===fe);
+
+  const tbody = document.getElementById('tbody-documentos');
+  if(!data.length) { tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">📄</div><div class="empty-text">Sin documentos registrados.</div></div></td></tr>`; return; }
+  
+  const docIcon = {'Invoice':'🧾','Bill of Lading':'🚢','Packing List':'📋','Certificado fitosanitario':'🌿','Certificado de origen':'📜','Contrato':'📝','Otro':'📄'};
+  tbody.innerHTML = data.map(d=>{
+    const dias = d.vencimiento ? daysFrom(d.vencimiento) : null;
+    const alertClass = dias!==null && dias<=7 ? 'color:var(--red);font-weight:500' : dias!==null && dias<=30 ? 'color:var(--amber);font-weight:500' : '';
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px"><span class="icon-cell">${docIcon[d.tipo]||'📄'}</span><div><div style="font-weight:500">${esc(d.nombre)}</div>${d.numero?`<div style="font-size:11px;color:var(--text-muted)">${esc(d.numero)}</div>`:''}</div></div></td>
+      <td>${esc(d.tipo)}</td>
+      <td>${esc(d.pais||'—')}</td>
+      <td style="${alertClass}">${fmtDate(d.vencimiento)}${dias!==null&&dias<=30&&dias>=0?` <span class="badge badge-amber">En ${dias}d</span>`:''}</td>
+      <td>${estadoBadge(d.estado)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="delItem('documentos',${d.id},renderDocumentos)">🗑</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function saveDocumento() {
+  const n = document.getElementById('d-nombre').value.trim();
+  if(!n) { toast('Ingresá el nombre'); return; }
+  await DB.add('documentos',{nombre:n,tipo:v('d-tipo'),estado:v('d-estado'),pais:v('d-pais'),vencimiento:v('d-vencimiento'),numero:v('d-numero'),notas:v('d-notas')});
+  closeModal('modal-documento'); clearForm(['d-nombre','d-pais','d-vencimiento','d-numero','d-notas']);
+  renderDocumentos(); updateBadges(); toast('Documento guardado ✓');
+}
+
+// ========== INTELIGENCIA ==========
+async function renderInteligencia() { renderPrecios(); }
+
+async function renderPrecios() {
+  let data = await DB.get('precios');
+  const tbody = document.getElementById('tbody-precios');
+  if(!data.length) { tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-icon">💰</div><div class="empty-text">Registrá precios de competidores en ferias, visitas o investigación online.</div></div></td></tr>`; return; }
+  tbody.innerHTML = data.map(p=>`
+    <tr>
+      <td><div style="font-weight:500">${esc(p.competidor)}</div><div style="font-size:12px;color:var(--text-muted)">${esc(p.producto||'')}</div></td>
+      <td>${p.pais||'—'}</td>
+      <td><span class="badge badge-navy">${p.categoria}</span></td>
+      <td style="font-weight:500">${p.precio||'—'}</td>
+      <td>${esc(p.unidad||'—')}</td>
+      <td style="color:var(--blue);font-weight:500">${p.peso&&p.precio?(parseFloat(p.precio)/parseFloat(p.peso)).toFixed(2)+' /kg':'<span style="color:var(--text-hint)">—</span>'}</td>
+      <td style="color:var(--text-muted)">${esc(p.fuente||'—')}</td>
+      <td style="color:var(--text-muted);font-size:12px">${fmtDate(p.fecha)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="delItem('precios',${p.id},renderPrecios)">🗑</button></td>
+    </tr>`).join('');
+}
+
+async function savePrecio() {
+  const c = document.getElementById('pr-competidor').value.trim();
+  if(!c) { toast('Ingresá el competidor'); return; }
+  await DB.add('precios',{competidor:c,producto:v('pr-producto'),pais:v('pr-pais'),categoria:v('pr-categoria'),precio:v('pr-precio'),unidad:v('pr-unidad'),peso:v('pr-peso'),fuente:v('pr-fuente'),fecha:v('pr-fecha'),notas:v('pr-notas')});
+  closeModal('modal-precio'); clearForm(['pr-competidor','pr-producto','pr-pais','pr-precio','pr-unidad','pr-peso','pr-fuente','pr-notas']);
+  document.getElementById('pr-precio-kg').value='';
+  renderPrecios(); toast('Precio registrado ✓');
+}
+
+async function renderTendencias() {
+  const data = await DB.get('tendencias');
+  const cont = document.getElementById('lista-tendencias');
+  if(!data.length) { cont.innerHTML='<div class="empty"><div class="empty-icon">📈</div><div class="empty-text">Agregá notas de inteligencia de mercado: tendencias, regulaciones, oportunidades.</div></div>'; return; }
+  const catColor = {'Tendencia de consumo':'blue','Regulación / normativa':'purple','Competencia':'amber','Logística / costos':'gray','Oportunidad':'green','Riesgo':'red'};
+  cont.innerHTML = data.map(t=>`
+    <div class="intel-card">
+      <div class="intel-header">
+        <div>
+          <span style="font-weight:500;font-size:14px">${esc(t.titulo)}</span>
+          <span style="margin-left:8px;font-size:12px;color:var(--text-muted)">${t.pais||''}</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${badge(t.categoria,catColor[t.categoria]||'gray')}
+          <button class="btn btn-ghost btn-sm" onclick="delItem('tendencias',${t.id},renderTendencias)">🗑</button>
+        </div>
+      </div>
+      ${t.descripcion?`<div class="intel-body">${esc(t.descripcion)}</div>`:''}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        ${t.fuente?`<span class="intel-source">Fuente: ${esc(t.fuente)}</span>`:'<span></span>'}
+        ${t.tags?`<div class="intel-tags">${t.tags.split(',').map(tag=>`<span class="badge badge-gray">${tag.trim()}</span>`).join('')}</div>`:''}
+      </div>
+    </div>`).join('');
+}
+
+async function saveTendencia() {
+  const t = document.getElementById('tr-titulo').value.trim();
+  if(!t) { toast('Ingresá el título'); return; }
+  await DB.add('tendencias',{titulo:t,pais:v('tr-pais'),categoria:v('tr-categoria'),descripcion:v('tr-descripcion'),fuente:v('tr-fuente'),tags:v('tr-tags')});
+  closeModal('modal-tendencia'); clearForm(['tr-titulo','tr-pais','tr-descripcion','tr-fuente','tr-tags']);
+  renderTendencias(); toast('Nota guardada ✓');
+}
+
+// ========== CALCULADORA ==========
+function calcExport() {
+  const fob = parseFloat(document.getElementById('calc-fob').value)||0;
+  const qty = parseFloat(document.getElementById('calc-cantidad').value)||1;
+  const flete = parseFloat(document.getElementById('calc-flete').value)||0;
+  const seguro = parseFloat(document.getElementById('calc-seguro').value)||0;
+  const arancel = parseFloat(document.getElementById('calc-arancel').value)||0;
+  const otros = parseFloat(document.getElementById('calc-otros').value)||0;
+
+  const totalFOB = fob * qty;
+  const cifValue = totalFOB + flete + seguro;
+  const arancelUSD = cifValue * arancel / 100;
+  const landed = cifValue + arancelUSD + otros;
+  const perUnit = qty > 0 ? landed / qty : 0;
+
+  const fmt = n => '$' + n.toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
+  
+  document.getElementById('calc-result').innerHTML = `
+    <div class="calc-result">
+      <div class="calc-line"><span class="calc-label">Valor FOB total (${qty} u.)</span><span class="calc-value">${fmt(totalFOB)}</span></div>
+      <div class="calc-line"><span class="calc-label">Flete internacional</span><span class="calc-value">${fmt(flete)}</span></div>
+      <div class="calc-line"><span class="calc-label">Seguro</span><span class="calc-value">${fmt(seguro)}</span></div>
+      <div class="calc-line"><span class="calc-label">Valor CIF</span><span class="calc-value">${fmt(cifValue)}</span></div>
+      <div class="calc-line"><span class="calc-label">Arancel destino (${arancel}%)</span><span class="calc-value">${fmt(arancelUSD)}</span></div>
+      <div class="calc-line"><span class="calc-label">Otros gastos en destino</span><span class="calc-value">${fmt(otros)}</span></div>
+      <div class="calc-total"><span>Costo landed total</span><span>${fmt(landed)}</span></div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:8px">Costo por unidad: ${fmt(perUnit)}</div>
+    </div>`;
+}
+
+async function saveCalc() {
+  const prod = document.getElementById('calc-producto').value.trim() || 'Cálculo sin nombre';
+  const fob = document.getElementById('calc-fob').value;
+  const pais = document.getElementById('calc-pais').value;
+  if(!fob) { toast('Completá los valores primero'); return; }
+  const flete = parseFloat(document.getElementById('calc-flete').value)||0;
+  const seguro = parseFloat(document.getElementById('calc-seguro').value)||0;
+  const arancel = parseFloat(document.getElementById('calc-arancel').value)||0;
+  const otros = parseFloat(document.getElementById('calc-otros').value)||0;
+  const qty = parseFloat(document.getElementById('calc-cantidad').value)||1;
+  const totalFOB = parseFloat(fob)*qty;
+  const cif = totalFOB+flete+seguro;
+  const landed = cif+(cif*arancel/100)+otros;
+  await DB.add('calculos',{producto:prod,pais,fob,qty,flete,seguro,arancel,otros,landed:landed.toFixed(2),fecha:today()});
+  renderCalculos(); toast('Cálculo guardado ✓');
+}
+
+async function renderCalculos() {
+  const data = await DB.get('calculos');
+  const cont = document.getElementById('lista-calculos');
+  if(!data.length) { cont.innerHTML='<div class="empty" style="padding:24px"><div class="empty-icon">💾</div><div class="empty-text" style="font-size:12px">Los cálculos guardados aparecen aquí.</div></div>'; return; }
+  cont.innerHTML = data.map(c=>`
+    <div style="padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <div style="font-weight:500">${esc(c.producto)}</div>
+      <div style="display:flex;justify-content:space-between;margin-top:2px">
+        <span style="color:var(--text-muted)">${c.pais} · ${fmtDate(c.fecha)}</span>
+        <span style="font-weight:500;color:var(--navy)">$${parseFloat(c.landed).toLocaleString()} landed</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:4px" onclick="delItem('calculos',${c.id},renderCalculos)">🗑</button>
+    </div>`).join('');
+}
+
+// ========== UTILS ==========
+function v(id) { const el=document.getElementById(id); return el?el.value:''; }
+function clearForm(ids) { ids.forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; }); }
+async function delItem(key, id, cb) { if(!confirm('¿Eliminar este registro?')) return; await DB.del(key,id); if(cb) cb(); toast('Eliminado ✓'); updateBadges(); }
+
+// ========== RONDA DE NEGOCIOS ==========
+function toggleRondaFields() {
+  const tipo = document.getElementById('v-tipo').value;
+  const rondaDiv = document.getElementById('ronda-fields');
+  if(rondaDiv) rondaDiv.style.display = tipo === 'Ronda de negocios' ? 'block' : 'none';
+}
+
+// ========== PRECIO POR KG AUTO-CALC ==========
+function calcPrecioKg() {
+  const precio = parseFloat(document.getElementById('pr-precio').value)||0;
+  const peso = parseFloat(document.getElementById('pr-peso').value)||0;
+  const kgEl = document.getElementById('pr-precio-kg');
+  if(kgEl) kgEl.value = (precio>0 && peso>0) ? (precio/peso).toFixed(2)+' / kg' : (precio>0 ? 'Ingresá el peso' : '');
+}
+
+// ========== COBRANZAS ==========
+function calcSaldoCob() {
+  const monto = parseFloat(document.getElementById('cob-monto').value)||0;
+  const cobrado = parseFloat(document.getElementById('cob-cobrado-monto').value)||0;
+  const saldo = monto - cobrado;
+  const saldoEl = document.getElementById('cob-saldo');
+  if(saldoEl) {
+    saldoEl.value = '$' + saldo.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    saldoEl.style.color = saldo > 0 ? 'var(--amber)' : 'var(--green)';
+  }
+}
+
+async function renderCobranzas() {
+  const fe = (document.getElementById('filter-estado-cob')||{value:''}).value;
+  const fp = (document.getElementById('filter-pais-cob')||{value:''}).value;
+  const fq = (document.getElementById('search-cob')||{value:''}).value.toLowerCase();
+  let data = await DB.get('cobranzas');
+  const hoy = today();
+
+  // Populate pais filter
+  const paisSel = document.getElementById('filter-pais-cob');
+  if(paisSel && paisSel.options.length <= 1) {
+    const paises = [...new Set(data.map(c=>c.pais).filter(Boolean))];
+    paises.forEach(p=>{ const o=document.createElement('option'); o.value=p; o.text=p; paisSel.appendChild(o); });
+  }
+
+  // Summary totals (use all data unfiltered)
+  const cobrado = data.filter(c=>c.estado==='Cobrado').reduce((s,c)=>s+parseFloat(c.monto||0),0);
+  const cobradoParcial = data.filter(c=>c.estado==='Cobrado parcial').reduce((s,c)=>s+parseFloat(c['cobrado-monto']||0),0);
+  const pendiente = data.filter(c=>c.estado==='Pendiente'||c.estado==='Cobrado parcial').reduce((s,c)=>s+(parseFloat(c.monto||0)-parseFloat(c['cobrado-monto']||0)),0);
+  const vencido = data.filter(c=>c.estado==='Vencido').reduce((s,c)=>s+(parseFloat(c.monto||0)-parseFloat(c['cobrado-monto']||0)),0);
+
+  const fmt = n => '$' + Math.abs(n).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
+  const cobEl = document.getElementById('cob-cobrado');
+  if(cobEl) {
+    cobEl.textContent = fmt(cobrado+cobradoParcial);
+    document.getElementById('cob-cobrado-ops').textContent = data.filter(c=>c.estado==='Cobrado').length;
+    document.getElementById('cob-pendiente').textContent = fmt(pendiente);
+    document.getElementById('cob-pendiente-ops').textContent = data.filter(c=>c.estado==='Pendiente'||c.estado==='Cobrado parcial').length;
+    document.getElementById('cob-vencido').textContent = fmt(vencido);
+    document.getElementById('cob-vencido-ops').textContent = data.filter(c=>c.estado==='Vencido').length;
+  }
+
+  // Apply filters
+  if(fe) data = data.filter(c=>c.estado===fe);
+  if(fp) data = data.filter(c=>c.pais===fp);
+  if(fq) data = data.filter(c=>(c.desc+' '+(c.cliente||'')).toLowerCase().includes(fq));
+
+  const tbody = document.getElementById('tbody-cobranzas');
+  if(!tbody) return;
+  if(!data.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty"><div class="empty-icon">💰</div><div class="empty-text">Sin operaciones. Registrá la primera cobranza.</div></div></td></tr>';
+    return;
+  }
+
+  const estColor = {Cobrado:'green','Cobrado parcial':'amber',Pendiente:'gray',Vencido:'red'};
+  tbody.innerHTML = data.map(c => {
+    const monto = parseFloat(c.monto||0);
+    const cobM = parseFloat(c['cobrado-monto']||0);
+    const saldo = monto - cobM;
+    const dias = c.vencimiento ? daysFrom(c.vencimiento) : null;
+    const vencStyle = (dias!==null && dias<0 && c.estado!=='Cobrado') ? 'color:var(--red);font-weight:500' : '';
+    const vencLabel = (dias!==null && dias<0 && c.estado!=='Cobrado') ? '<br><span class="badge badge-red" style="font-size:10px">'+Math.abs(dias)+'d vencido</span>' : '';
+    return '<tr>'
+      +'<td><div style="font-weight:500;font-size:13px">'+esc(c.desc)+'</div>'
+      +(c.cliente?'<div style="font-size:11px;color:var(--text-muted)">'+esc(c.cliente)+(c.condicion?' · '+esc(c.condicion):'')+'</div>':'')
+      +'</td>'
+      +'<td>'+esc(c.pais||'—')+'</td>'
+      +'<td style="font-weight:500">$'+monto.toLocaleString('es-AR',{minimumFractionDigits:2})+'</td>'
+      +'<td style="color:var(--text-muted)">'+(c.unidades?Number(c.unidades).toLocaleString()+' u':'—')+'</td>'
+      +'<td style="color:var(--green);font-weight:500">'+(cobM>0?'$'+cobM.toLocaleString('es-AR',{minimumFractionDigits:2}):'—')+'</td>'
+      +'<td style="color:'+(saldo>0?'var(--amber)':'var(--green)')+';font-weight:500">'+(saldo>0?'$'+saldo.toLocaleString('es-AR',{minimumFractionDigits:2}):'✓')+'</td>'
+      +'<td style="'+vencStyle+'">'+fmtDate(c.vencimiento)+vencLabel+'</td>'
+      +'<td>'+badge(c.estado||'Pendiente',estColor[c.estado]||'gray')+'</td>'
+      +'<td><button class="btn btn-ghost btn-sm" onclick="delItem(\'cobranzas\','+c.id+',renderCobranzas)">🗑</button></td>'
+      +'</tr>';
+  }).join('');
+}
+
+async function saveCobranza() {
+  const desc = document.getElementById('cob-desc').value.trim();
+  if(!desc) { toast('Ingresá la descripción'); return; }
+  await DB.add('cobranzas', {
+    desc, cliente:v('cob-cliente'), pais:v('cob-pais'),
+    monto:v('cob-monto'), 'cobrado-monto':v('cob-cobrado-monto'),
+    unidades:v('cob-unidades'), marca:v('cob-marca'),
+    embarque:v('cob-embarque'), vencimiento:v('cob-vencimiento'),
+    estado:v('cob-estado'), condicion:v('cob-condicion'), notas:v('cob-notas')
+  });
+  closeModal('modal-cobranza');
+  clearForm(['cob-desc','cob-cliente','cob-pais','cob-monto','cob-cobrado-monto','cob-saldo','cob-unidades','cob-embarque','cob-vencimiento','cob-notas']);
+  await renderCobranzas();
+  toast('Cobranza guardada ✓');
+}
+
+// ========== INIT ==========
+document.addEventListener('DOMContentLoaded', async () => {
+  await initAuth();
+  document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+  document.getElementById('login-user').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-pass').focus(); });
+});
+</script>
+</body>
+</html>

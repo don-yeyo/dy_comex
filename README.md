@@ -106,3 +106,36 @@ Para construir y levantar toda la arquitectura de manera contenerizada:
 docker-compose up --build
 ```
 
+---
+
+## 📋 Módulos del CRM
+
+| Módulo | Descripción |
+|---|---|
+| **Dashboard** | Métricas clave, funnel de oportunidades, alertas, volumen de exportación, actividad reciente. |
+| **Tareas** | Gestión de tareas con prioridad, fecha límite, asignación y seguimiento de estado (pendiente/hecha). |
+| **Alertas** | Alertas automáticas generadas por documentos próximos a vencer y visitas planificadas. |
+| **Contactos** | ABM completo de contactos (importadores, distribuidores, brokers). Sincronización con Finnegans ERP. |
+| **Visitas** | Registro de ferias, rondas de negocios, reuniones comerciales con datos específicos por tipo. |
+| **Oportunidades** | Pipeline de ventas con etapas (Prospecto → Cerrado), montos, probabilidad y cierre estimado. |
+| **Muestras** | Seguimiento de envío de muestras, resultado (positivo/negativo), costo y feedback del cliente. |
+| **Comunicaciones** | Log de comunicaciones (email, llamada, WhatsApp, reunión, videollamada) con línea de tiempo. |
+| **Países** | Ficha completa de cada país destino: arancel, incoterm, organismo sanitario, requisitos de etiquetado. |
+| **Documentos** | Control de documentos de exportación con alertas de vencimiento (Invoice, B/L, certificados). |
+| **Inteligencia de mercado** | Precios de competidores con cálculo automático de precio/kg. Notas de tendencias con etiquetas. |
+| **Calculadora** | Cálculo de costo landed (FOB + flete + seguro + arancel + gastos en destino). Guardado de simulaciones. |
+| **Cobranzas** | Gestión de cobranzas con totales cobrados, pendientes y vencidos. Cálculo de saldo automático. |
+
+---
+
+## 🔎 Zoom de interfaz configurable
+
+La aplicación incluye un selector de tamaño de texto y controles con 3 niveles:
+
+| Nivel | Descripción |
+|---|---|
+| **A** (chico) | Texto e inputs más compactos, ideal para ver más información en pantalla. |
+| **A** (mediano) | Tamaño estándar, configuración por defecto. |
+| **A** (grande) | Texto e inputs más grandes, ideal para mejor legibilidad. |
+
+El selector se encuentra en la barra superior (header) junto al botón de modo oscuro/claro. La configuración se guarda automáticamente en el `localStorage` del navegador y persiste entre sesiones.
