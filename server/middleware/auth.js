@@ -6,7 +6,7 @@ module.exports = (req, res, next) => {
   // Para desarrollo local con Mocks
   if (process.env.NODE_ENV === 'development') {
     req.user = {
-      email: 'comercio.exterior@donyeyo.com.ar',
+      email: 'gabrielt@donyeyo.com.ar',
       name: 'Gabriel Comex (Mock)',
       rol: 'admin'
     };
@@ -21,17 +21,27 @@ module.exports = (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    // Nota: En producción verificaríamos la firma y el tenant id del JWT emitido por Microsoft Azure AD.
-    // Para entornos dinámicos y simulación del modelo del cliente, decodificamos el payload.
+    // Decodificar payload
     const base64Url = token.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
     const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
 
-    const email = payload.preferred_username || payload.email || payload.upn || '';
+    const email = (payload.preferred_username || payload.email || payload.upn || '').trim().toLowerCase();
     
     // Validar el dominio permitido corporativo
     if (allowedDomain && !email.endsWith(`@${allowedDomain}`)) {
       return res.status(403).json({ error: 'Acceso denegado. Debe usar una cuenta corporativa de Don Yeyo.' });
+    }
+
+    // Validar emails autorizados al estilo dy_shigma
+    const authorizedEmailsStr = process.env.AUTHORIZED_EMAILS || '';
+    const authorizedEmails = authorizedEmailsStr
+      .split(',')
+      .map(e => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (authorizedEmails.length > 0 && !authorizedEmails.includes(email)) {
+      return res.status(403).json({ error: `Acceso denegado. El correo ${email} no está en la lista de accesos autorizados.` });
     }
 
     req.user = {
