@@ -73,7 +73,7 @@ body {
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .layout {
