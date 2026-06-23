@@ -748,7 +748,13 @@ export default function App() {
                   <span style={{textDecoration: t.status === 'hecha' ? 'line-through' : 'none', flex: 1}}>
                     {t.titulo}
                   </span>
-                  <span className="badge badge-warning">{t.prioridad}</span>
+                  <span className="badge badge-warning" style={{marginRight: 10}}>{t.prioridad}</span>
+                  <button className="btn btn-secondary" style={{padding: 6, marginRight: 6}} onClick={() => {
+                    setFormValues(t);
+                    setShowModal('tarea');
+                  }}>
+                    ✏️
+                  </button>
                   <button className="btn btn-secondary" style={{padding: 6}} onClick={() => handleDelete('tareas', t.id)}>
                     <Trash2 size={14} />
                   </button>
@@ -878,11 +884,11 @@ export default function App() {
                 <>
                   <div className="form-group">
                     <label className="form-label">Descripción de la Tarea</label>
-                    <input type="text" className="form-input" required onChange={e => setFormValues({...formValues, titulo: e.target.value})} />
+                    <input type="text" className="form-input" required value={formValues.titulo || ''} onChange={e => setFormValues({...formValues, titulo: e.target.value})} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Prioridad</label>
-                    <select className="form-input" onChange={e => setFormValues({...formValues, prioridad: e.target.value})}>
+                    <select className="form-input" value={formValues.prioridad || 'media'} onChange={e => setFormValues({...formValues, prioridad: e.target.value})}>
                       <option value="baja">Baja</option>
                       <option value="media">Media</option>
                       <option value="alta">Alta</option>
