@@ -21,26 +21,31 @@ router.delete('/tareas/:id', apiController.deleteTarea);
 // Rutas de Contactos
 router.get('/contactos', apiController.getContactos);
 router.post('/contactos', apiController.createContacto);
+router.put('/contactos/:id', apiController.updateContacto);
 router.delete('/contactos/:id', apiController.deleteContacto);
 
 // Rutas de Cobranzas
 router.get('/cobranzas', apiController.getCobranzas);
 router.post('/cobranzas', apiController.createCobranza);
+router.put('/cobranzas/:id', apiController.updateCobranza);
 router.delete('/cobranzas/:id', apiController.deleteCobranza);
 
 // Rutas de Paises
 router.get('/paises', apiController.getPaises);
 router.post('/paises', apiController.createPais);
+router.put('/paises/:id', apiController.updatePais);
 router.delete('/paises/:id', apiController.deletePais);
 
 // Rutas de Visitas
 router.get('/visitas', apiController.getVisitas);
 router.post('/visitas', apiController.createVisita);
+router.put('/visitas/:id', apiController.updateVisita);
 router.delete('/visitas/:id', apiController.deleteVisita);
 
 // Rutas de Oportunidades
 router.get('/oportunidades', apiController.getOportunidades);
 router.post('/oportunidades', apiController.createOportunidad);
+router.put('/oportunidades/:id', apiController.updateOportunidad);
 router.delete('/oportunidades/:id', apiController.deleteOportunidad);
 
 // Rutas de Muestras

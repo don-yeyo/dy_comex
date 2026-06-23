@@ -26,9 +26,12 @@ exports.createTarea = async (req, res) => {
 
 exports.updateTarea = async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { titulo, fecha, prioridad, pais_id, asignado, notas, status } = req.body;
   try {
-    await pool.query('UPDATE tareas SET status = ? WHERE id = ?', [status, id]);
+    await pool.query(
+      'UPDATE tareas SET titulo = COALESCE(?, titulo), fecha = ?, prioridad = COALESCE(?, prioridad), pais_id = ?, asignado = ?, notas = ?, status = COALESCE(?, status) WHERE id = ?',
+      [titulo, fecha || null, prioridad || null, pais_id || null, asignado || null, notas || null, status || null, id]
+    );
     res.json({ message: 'Tarea actualizada' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -68,6 +71,20 @@ exports.createContacto = async (req, res) => {
   }
 };
 
+exports.updateContacto = async (req, res) => {
+  const { id } = req.params;
+  const { nombre, apellido, empresa, rol, pais_id, pais_nombre, ciudad, email, telefono, estado, notas, finnegans_id } = req.body;
+  try {
+    await pool.query(
+      'UPDATE contactos SET nombre = COALESCE(?, nombre), apellido = ?, empresa = ?, rol = ?, pais_id = ?, pais_nombre = ?, ciudad = ?, email = ?, telefono = ?, estado = ?, notas = ?, finnegans_id = ? WHERE id = ?',
+      [nombre, apellido || null, empresa || null, rol || null, pais_id || null, pais_nombre || null, ciudad || null, email || null, telefono || null, estado || null, notas || null, finnegans_id || null, id]
+    );
+    res.json({ message: 'Contacto actualizado con éxito' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.deleteContacto = async (req, res) => {
   const { id } = req.params;
   try {
@@ -96,6 +113,20 @@ exports.createCobranza = async (req, res) => {
       [descripcion, cliente_id || null, pais_id || null, monto || 0.00, cobrado_monto || 0.00, unidades || 0, marca || 'Don Yeyo', embarque || null, vencimiento || null, estado || 'Pendiente', condicion || null, notas || null]
     );
     res.json({ id: result.insertId, message: 'Cobranza guardada con éxito' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateCobranza = async (req, res) => {
+  const { id } = req.params;
+  const { descripcion, cliente_id, pais_id, monto, cobrado_monto, unidades, marca, embarque, vencimiento, estado, condicion, notas } = req.body;
+  try {
+    await pool.query(
+      'UPDATE cobranzas SET descripcion = COALESCE(?, descripcion), cliente_id = ?, pais_id = ?, monto = ?, cobrado_monto = ?, unidades = ?, marca = ?, embarque = ?, vencimiento = ?, estado = ?, condicion = ?, notas = ? WHERE id = ?',
+      [descripcion, cliente_id || null, pais_id || null, monto || 0.00, cobrado_monto || 0.00, unidades || 0, marca || 'Don Yeyo', embarque || null, vencimiento || null, estado || 'Pendiente', condicion || null, notas || null, id]
+    );
+    res.json({ message: 'Cobranza actualizada con éxito' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -134,6 +165,20 @@ exports.createPais = async (req, res) => {
   }
 };
 
+exports.updatePais = async (req, res) => {
+  const { id } = req.params;
+  const { nombre, bandera, arancel, incoterm, ncm, moneda, tipocambio, tc_fecha, sanitario, sanitario_req, etiquetado, notas } = req.body;
+  try {
+    await pool.query(
+      'UPDATE paises SET nombre = COALESCE(?, nombre), bandera = ?, arancel = ?, incoterm = ?, ncm = ?, moneda = ?, tipocambio = ?, tc_fecha = ?, sanitario = ?, sanitario_req = ?, etiquetado = ?, notas = ? WHERE id = ?',
+      [nombre, bandera || '🌐', arancel || 0.00, incoterm || 'FOB', ncm || null, moneda || 'USD', tipocambio || 1.0000, tc_fecha || null, sanitario || null, sanitario_req || null, etiquetado || null, notas || null, id]
+    );
+    res.json({ message: 'País actualizado con éxito' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.deletePais = async (req, res) => {
   const { id } = req.params;
   try {
@@ -167,6 +212,20 @@ exports.createVisita = async (req, res) => {
   }
 };
 
+exports.updateVisita = async (req, res) => {
+  const { id } = req.params;
+  const { titulo, tipo, estado, fecha, lugar, contactos, notas, proximo, ronda_org, ronda_reuniones, ronda_importadores, ronda_pedidos, ronda_resultado } = req.body;
+  try {
+    await pool.query(
+      'UPDATE visitas SET titulo = COALESCE(?, titulo), tipo = COALESCE(?, tipo), estado = ?, fecha = ?, lugar = ?, contactos = ?, notas = ?, proximo = ?, ronda_org = ?, ronda_reuniones = ?, ronda_importadores = ?, ronda_pedidos = ?, ronda_resultado = ? WHERE id = ?',
+      [titulo, tipo, estado || 'Planificada', fecha, lugar || null, contactos || null, notas || null, proximo || null, ronda_org || null, ronda_reuniones || 0, ronda_importadores || 0, ronda_pedidos || 0.00, ronda_resultado || null, id]
+    );
+    res.json({ message: 'Visita actualizada con éxito' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.deleteVisita = async (req, res) => {
   const { id } = req.params;
   try {
@@ -195,6 +254,20 @@ exports.createOportunidad = async (req, res) => {
       [nombre, pais_id || null, contacto_id || null, marca || 'Don Yeyo', categoria || null, monto || 0.00, prob || 0, etapa || 'Prospecto', cierre || null, notas || null]
     );
     res.json({ id: result.insertId, message: 'Oportunidad guardada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateOportunidad = async (req, res) => {
+  const { id } = req.params;
+  const { nombre, pais_id, contacto_id, marca, categoria, monto, prob, etapa, cierre, notas } = req.body;
+  try {
+    await pool.query(
+      'UPDATE oportunidades SET nombre = COALESCE(?, nombre), pais_id = ?, contacto_id = ?, marca = ?, categoria = ?, monto = ?, prob = ?, etapa = ?, cierre = ?, notas = ? WHERE id = ?',
+      [nombre, pais_id || null, contacto_id || null, marca || 'Don Yeyo', categoria || null, monto || 0.00, prob || 0, etapa || 'Prospecto', cierre || null, notas || null, id]
+    );
+    res.json({ message: 'Oportunidad actualizada con éxito' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

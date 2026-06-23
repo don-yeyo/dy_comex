@@ -109,7 +109,11 @@ export default function App() {
   const handleSave = async (e, endpoint) => {
     e.preventDefault();
     try {
-      await axios.post(`/${endpoint}`, formValues);
+      if (formValues.id) {
+        await axios.put(`/${endpoint}/${formValues.id}`, formValues);
+      } else {
+        await axios.post(`/${endpoint}`, formValues);
+      }
       setShowModal(null);
       setFormValues({});
       fetchData();
@@ -367,6 +371,12 @@ export default function App() {
                         </span>
                       </td>
                       <td>
+                        <button className="btn btn-secondary" style={{padding: 6, marginRight: 6}} onClick={() => {
+                          setFormValues(c);
+                          setShowModal('contacto');
+                        }}>
+                          ✏️
+                        </button>
                         <button className="btn btn-secondary" style={{padding: 6}} onClick={() => handleDelete('contactos', c.id)}>
                           <Trash2 size={14} />
                         </button>
@@ -604,6 +614,12 @@ export default function App() {
                           </span>
                         </td>
                         <td>
+                          <button className="btn btn-secondary" style={{padding: 6, marginRight: 6}} onClick={() => {
+                            setFormValues(c);
+                            setShowModal('cobranza');
+                          }}>
+                            ✏️
+                          </button>
                           <button className="btn btn-secondary" style={{padding: 6}} onClick={() => handleDelete('cobranzas', c.id)}>
                             <Trash2 size={14} />
                           </button>
