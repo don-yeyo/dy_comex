@@ -295,22 +295,121 @@ export default function App() {
               </div>
             </div>
 
+            {/* EXPORTACIÓN ANUAL */}
             <div className="card">
-              <h3>Volumen de exportación por país</h3>
+              <h3>📦 Volumen de exportación anual</h3>
+              <div className="metrics-grid" style={{marginBottom: 20}}>
+                <div className="metric-card" style={{background: 'var(--primary-light)'}}>
+                  <div className="metric-header" style={{color: 'var(--primary)'}}>Unidades Exportadas</div>
+                  <div className="metric-value" style={{fontSize: '1.6rem'}}>{cobranzas.reduce((sum, c) => sum + (parseInt(c.unidades) || 0), 0).toLocaleString('es-AR')} u</div>
+                </div>
+                <div className="metric-card" style={{background: 'var(--success-light)'}}>
+                  <div className="metric-header" style={{color: 'var(--success)'}}>Valor Total (USD)</div>
+                  <div className="metric-value" style={{fontSize: '1.6rem'}}>${cobranzas.reduce((sum, c) => sum + (parseFloat(c.monto) || 0), 0).toLocaleString('es-AR')}</div>
+                </div>
+                <div className="metric-card" style={{background: 'var(--danger-light)'}}>
+                  <div className="metric-header" style={{color: 'var(--danger)'}}>Cobranzas Vencidas</div>
+                  <div className="metric-value" style={{fontSize: '1.6rem'}}>${cobranzaVencida.toLocaleString('es-AR')}</div>
+                </div>
+              </div>
+
+              <h4 style={{fontWeight: 700, margin: '20px 0 10px'}}>Desglose por país de destino</h4>
               <div style={{marginTop: 16}}>
                 {paises.map(p => {
                   const totalPais = cobranzas.filter(c => c.pais_id === p.id).reduce((sum, c) => sum + parseFloat(c.monto), 0);
+                  const unitsPais = cobranzas.filter(c => c.pais_id === p.id).reduce((sum, c) => sum + (parseInt(c.unidades) || 0), 0);
+                  const pct = cobranzaTotalCobrada > 0 ? (totalPais / cobranzaTotalCobrada) * 100 : 0;
                   return (
                     <div key={p.id} style={{display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12}}>
                       <span style={{fontSize: 20}}>{p.bandera}</span>
-                      <span style={{width: 120, fontWeight: 500}}>{p.nombre}</span>
+                      <span style={{width: 120, fontWeight: 600}}>{p.nombre}</span>
                       <div style={{flex: 1, height: 10, background: 'var(--border-color)', borderRadius: 5, overflow: 'hidden'}}>
-                        <div style={{width: `${Math.min(100, (totalPais / (cobranzaTotalCobrada || 1)) * 100)}%`, height: '100%', background: 'var(--primary)'}}></div>
+                        <div style={{width: `${Math.min(100, pct)}%`, height: '100%', background: 'var(--primary)'}}></div>
                       </div>
-                      <span style={{fontWeight: 600}}>${totalPais.toLocaleString('es-AR')}</span>
+                      <div style={{textAlign: 'right', minWidth: 140}}>
+                        <span style={{fontWeight: 700}}>${totalPais.toLocaleString('es-AR')}</span>
+                        <div style={{fontSize: '11px', color: 'var(--text-muted)'}}>{unitsPais.toLocaleString()} u</div>
+                      </div>
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* ALERTAS CRÍTICAS & VISITAS PRÓXIMAS */}
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24}}>
+              <div className="card" style={{margin: 0}}>
+                <h3>🔔 Alertas críticas</h3>
+                <div style={{display: 'flex', flexDirection: 'column', gap: 10}}>
+                  {documentos.filter(d => d.estado === 'Vencido' || d.estado === 'Por vencer').length === 0 ? (
+                    <p style={{color: 'var(--text-muted)', textAlign: 'center'}}>Sin alertas pendientes</p>
+                  ) : (
+                    documentos.filter(d => d.estado === 'Vencido' || d.estado === 'Por vencer').slice(0, 4).map(d => (
+                      <div key={d.id} className={`badge ${d.estado === 'Vencido' ? 'badge-danger' : 'badge-warning'}`} style={{padding: '10px 14px', borderRadius: 'var(--radius)', justifyContent: 'space-between', width: '100%'}}>
+                        <span>{d.nombre} ({d.tipo})</span>
+                        <span>Vence: {new Date(d.vencimiento).toLocaleDateString()}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="card" style={{margin: 0}}>
+                <h3>📅 Próximas visitas</h3>
+                <div style={{display: 'flex', flexDirection: 'column', gap: 10}}>
+                  {visitas.filter(v => v.estado === 'Planificada').length === 0 ? (
+                    <p style={{color: 'var(--text-muted)', textAlign: 'center'}}>Sin visitas programadas</p>
+                  ) : (
+                    visitas.filter(v => v.estado === 'Planificada').slice(0, 4).map(v => (
+                      <div key={v.id} style={{display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)'}}>
+                        <div>
+                          <strong>{v.titulo}</strong>
+                          <div style={{fontSize: 11, color: 'var(--text-muted)'}}>{v.lugar}</div>
+                        </div>
+                        <span className="badge badge-primary">{new Date(v.fecha).toLocaleDateString()}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* FUNNEL DE OPORTUNIDADES */}
+            <div className="card">
+              <h3>💼 Funnel de oportunidades</h3>
+              <div className="funnel-container" style={{marginTop: 16}}>
+                {['Prospecto', 'Contactado', 'Propuesta', 'Negociación', 'Cerrado'].map(stage => (
+                  <div key={stage} className="funnel-column">
+                    <div className="funnel-header">{stage}</div>
+                    {oportunidades.filter(o => o.etapa === stage).length === 0 ? (
+                      <div style={{fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: 8}}>—</div>
+                    ) : (
+                      oportunidades.filter(o => o.etapa === stage).map(o => (
+                        <div key={o.id} className="funnel-card" style={{fontSize: 12}}>
+                          <strong>{o.nombre}</strong>
+                          <div style={{color: 'var(--primary)', fontWeight: 600, marginTop: 4}}>${parseFloat(o.monto).toLocaleString()}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ACTIVIDAD RECIENTE */}
+            <div className="card">
+              <h3>📋 Actividad reciente</h3>
+              <div style={{display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12}}>
+                {visitas.slice(0, 3).map(v => (
+                  <div key={v.id} style={{display: 'flex', gap: 10, fontSize: 13, borderBottom: '1px solid var(--border)', paddingBottom: 6}}>
+                    <span>📅</span> <span>Visita: {v.titulo} ({v.tipo}) - {v.estado}</span>
+                  </div>
+                ))}
+                {contactos.slice(0, 3).map(c => (
+                  <div key={c.id} style={{display: 'flex', gap: 10, fontSize: 13, borderBottom: '1px solid var(--border)', paddingBottom: 6}}>
+                    <span>👤</span> <span>Contacto: {c.nombre} {c.apellido} ({c.empresa})</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
