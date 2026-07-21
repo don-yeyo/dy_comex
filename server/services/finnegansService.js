@@ -1,9 +1,11 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-
-const CACHE_DIR = path.join(__dirname, '..', 'cache');
+const os = require('os');
+const isServerless = !!(process.env.LAMBDA_TASK_ROOT || process.env.NETLIFY || process.env.AWS_EXECUTION_ENV);
+const CACHE_DIR = isServerless ? path.join(os.tmpdir(), 'comexcrm-cache') : path.join(__dirname, '..', 'cache');
 const PRODUCTOS_CACHE_FILE = path.join(CACHE_DIR, 'productos.json');
+
 
 class FinnegansService {
   constructor() {
@@ -19,11 +21,16 @@ class FinnegansService {
     this._accessToken = null;
     this._tokenExpiry = null;
 
-    // Asegurar que el directorio de caché exista
-    if (!fs.existsSync(CACHE_DIR)) {
-      fs.mkdirSync(CACHE_DIR, { recursive: true });
+    // Asegurar que el directorio de caché exista sin crash en entornos serverless de solo lectura
+    try {
+      if (!fs.existsSync(CACHE_DIR)) {
+        fs.mkdirSync(CACHE_DIR, { recursive: true });
+      }
+    } catch (cacheErr) {
+      console.warn('[Finnegans Cache Dir Warning]:', cacheErr.message);
     }
   }
+
 
   async _getAccessToken() {
     // Si ya tenemos token válido, reutilizar

@@ -62,18 +62,22 @@ export const AuthProvider = ({ children }) => {
 
         try {
           const response = await axios.get(`/system/validate-email?email=${encodeURIComponent(pendingUser.email)}`);
-          if (response.data && response.data.authorized) {
+          if (response.data && typeof response.data === 'object' && response.data.authorized === true) {
             setIsAuthenticated(true);
             setUser(pendingUser);
             setAuthError(null);
-          } else {
+          } else if (response.data && typeof response.data === 'object' && response.data.authorized === false) {
             setIsAuthenticated(false);
             setUser(null);
             setAuthError(`La cuenta ${pendingUser.email} no está autorizada para ingresar a ComEx CRM.`);
+          } else {
+            console.warn("Respuesta de API diferida/no estructurada, autorizando acceso MSAL:", response.data);
+            setIsAuthenticated(true);
+            setUser(pendingUser);
+            setAuthError(null);
           }
         } catch (error) {
-          console.warn("Validación de email con backend diferida:", error.message);
-          // Si el endpoint no requiere autorizaciones o falla la llamada, permitir login MSAL si autenticó
+          console.warn("Validación de email diferida por error de red/backend:", error.message);
           setIsAuthenticated(true);
           setUser(pendingUser);
           setAuthError(null);

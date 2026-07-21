@@ -25,8 +25,10 @@ app.use(express.json());
 console.log(`[Server] Iniciando en modo: ${process.env.NODE_ENV}`);
 console.log(`[Server] Vinculado a DB: ${process.env.DB_NAME || 'dy_comex'} en host: ${process.env.DB_HOST || 'localhost'}`);
 
-// Rutas de API
+// Rutas de API (Soporta tanto /api/* como /* directo de Netlify Functions)
 app.use('/api', apiRoutes);
+app.use('/', apiRoutes);
+
 
 // Manejador de ruta raíz para chequear estado
 app.get('/health', (req, res) => {
