@@ -25,11 +25,16 @@ pool.getConnection()
       await conn.query(`ALTER TABLE contactos MODIFY COLUMN estado VARCHAR(50) DEFAULT 'Activo'`);
     } catch (e) { /* Columna ya modificada o tabla inexistente */ }
     try {
-      // 2. Agregar imagen_url MEDIUMTEXT a precios_competidores
+      // 2. Modificar muestras.producto a TEXT para soportar JSON multi-producto sin límite de 150/200 caracteres
+      await conn.query(`ALTER TABLE muestras MODIFY COLUMN producto TEXT NOT NULL`);
+    } catch (e) { /* Columna ya modificada */ }
+    try {
+      // 3. Agregar imagen_url MEDIUMTEXT a precios_competidores
       await conn.query(`ALTER TABLE precios_competidores ADD COLUMN imagen_url MEDIUMTEXT DEFAULT NULL`);
     } catch (e) { /* Columna ya existe */ }
     conn.release();
   })
+
   .catch(err => {
     console.error('[Database] ERROR al conectar a MySQL:', err.message);
   });

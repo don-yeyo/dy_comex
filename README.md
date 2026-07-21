@@ -1,6 +1,6 @@
-# TradeCRM — Comercio Exterior Don Yeyo S.A.
+# ComEx CRM — Comercio Exterior Don Yeyo S.A.
 
-TradeCRM es una herramienta de gestión de relaciones con clientes (CRM) y control de operaciones de Comercio Exterior diseñada específicamente para Don Yeyo S.A.
+ComEx CRM es una herramienta de gestión de relaciones con clientes (CRM) y control de operaciones de Comercio Exterior diseñada específicamente para Don Yeyo S.A.
 
 Este proyecto hereda la arquitectura robusta y la estética premium (incluyendo soporte nativo para Modo Oscuro/Claro y Autenticación con Microsoft Azure AD) del sistema `dy_control_ingresos_egresos`.
 
@@ -40,7 +40,7 @@ Para que el login corporativo funcione con cuentas `@donyeyo.com.ar`, se debe re
 
 1. Ve a **Microsoft Entra ID (Azure Active Directory)** > **App registrations** > **New registration**.
 2. Completa los detalles:
-   - **Name**: `TradeCRM - Comercio Exterior`
+   - **Name**: `ComEx CRM - Comercio Exterior`
    - **Supported account types**: `Accounts in this organizational directory only` (Single tenant) o `Multitenant`.
    - **Redirect URI**: Selecciona `Single-page application (SPA)` y coloca `http://localhost:3000` (desarrollo local) y la URL de tu Netlify en producción.
 3. En la sección **Authentication**:
@@ -55,9 +55,7 @@ Para que el login corporativo funcione con cuentas `@donyeyo.com.ar`, se debe re
 - **En el Cliente (`client/.env`):**
   - `VITE_AZURE_AD_CLIENT_ID`: ID de aplicación de Azure AD.
   - `VITE_AZURE_AD_TENANT_ID`: ID de tenant de Azure AD.
-  - `VITE_MOCK_AUTH`: (`true` / `false`) permite omitir el login de Microsoft en entornos de desarrollo local.
-  - `VITE_MOCK_AUTH_EMAIL`: Email del usuario en modo mock.
-  - `VITE_MOCK_AUTH_NAME`: Nombre del usuario en modo mock.
+  - `VITE_SHOW_DETAILED_ERRORS`: (`true` / `false`) permite mostrar el detalle exacto de las respuestas de error del servidor/MySQL en las notificaciones Toasts.
 
 ---
 
@@ -137,13 +135,20 @@ docker-compose up --build
 | **Contactos** | ABM completo de contactos (importadores, distribuidores, brokers). Sincronización con Finnegans ERP. |
 | **Visitas** | Registro de ferias, rondas de negocios, reuniones comerciales con datos específicos por tipo. |
 | **Oportunidades** | Pipeline de ventas con etapas (Prospecto → Cerrado), montos, probabilidad y cierre estimado. |
-| **Muestras** | Seguimiento de envío de muestras, resultado (positivo/negativo), costo y feedback del cliente. |
+| **Muestras** | Registro de muestras compuestas por 1 o varios productos con autocompletado en memoria del catálogo de Finnegans ERP, control de cantidad/lote y título por Destinatario · País · Fecha. |
 | **Comunicaciones** | Log de comunicaciones (email, llamada, WhatsApp, reunión, videollamada) con línea de tiempo. |
 | **Países** | Ficha completa de cada país destino: arancel, incoterm, organismo sanitario, requisitos de etiquetado. |
 | **Documentos** | Control de documentos de exportación con alertas de vencimiento (Invoice, B/L, certificados). |
-| **Inteligencia de mercado** | Precios de competidores con cálculo automático de precio/kg. Notas de tendencias con etiquetas. |
+| **Inteligencia de mercado** | Precios de competidores con cálculo de precio/kg y Uploader Pro de Fotos de Góndolas. Notas de tendencias. |
 | **Calculadora** | Cálculo de costo landed (FOB + flete + seguro + arancel + gastos en destino). Guardado de simulaciones. |
 | **Cobranzas** | Gestión de cobranzas con totales cobrados, pendientes y vencidos. Cálculo de saldo automático. |
+
+---
+
+## 📱 PWA & Notificaciones Push
+- **PWA (Progressive Web App)**: La aplicación incluye manifest.json y Service Worker (`sw.js`), permitiendo instalar ComEx CRM como aplicación nativa en celulares, tablets y computadoras de escritorio.
+- **Campana de Alertas en Header**: Ícono dinámico en la barra superior con badge rojo contador de alertas no visualizadas. Redirige automáticamente a la sección de Alertas y marca las notificaciones como leídas.
+- **Notificaciones Push Nativas**: Notificaciones del navegador/sistema ante vencimientos de documentos o visitas programadas próximas.
 
 ---
 

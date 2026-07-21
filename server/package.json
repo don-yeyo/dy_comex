@@ -1,7 +1,7 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "API Server for TradeCRM - dy_comex",
+  "description": "API Server for ComEx CRM - dy_comex",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

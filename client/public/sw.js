@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tradecrm-v1';
+const CACHE_NAME = 'comexcrm-v1';
 const ASSETS = [
   '/',
   '/index.html',
@@ -29,7 +29,7 @@ self.addEventListener('fetch', (e) => {
 });
 
 self.addEventListener('push', (e) => {
-  const data = e.data ? e.data.json() : { title: 'TradeCRM Alerta', body: 'Tenés nuevas alertas de comercio exterior.' };
+  const data = e.data ? e.data.json() : { title: 'ComEx CRM Alerta', body: 'Tenés nuevas alertas de comercio exterior.' };
   e.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,

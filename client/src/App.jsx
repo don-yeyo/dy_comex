@@ -24,7 +24,7 @@ import './App.css';
 const APP_CONFIG = {
   companyName: import.meta.env.VITE_COMPANY_NAME || 'DON YEYO S.A.',
   appVersion: import.meta.env.VITE_APP_VERSION || '1.0.0',
-  appName: import.meta.env.VITE_APP_NAME || 'TradeCRM',
+  appName: import.meta.env.VITE_APP_NAME || 'ComEx CRM',
   defaultUserName: import.meta.env.VITE_DEFAULT_USER_NAME || 'Usuario',
   defaultUserEmail: import.meta.env.VITE_DEFAULT_USER_EMAIL || 'usuario@empresa.com'
 };
@@ -45,7 +45,10 @@ const VALIDATION_RULES = {
   visita: {
     titulo: { required: true, maxLength: 200, label: 'Título' },
     lugar: { maxLength: 150, label: 'Lugar' },
-    contactos: { maxLength: 300, label: 'Contactos' }
+    contactos: { maxLength: 300, label: 'Contactos' },
+    ronda_reuniones: { min: 0, label: 'Nro. de reuniones' },
+    ronda_importadores: { min: 0, label: 'Importadores contactados' },
+    ronda_pedidos: { min: 0, label: 'Pedidos generados' }
   },
   oportunidad: {
     nombre: { required: true, maxLength: 200, label: 'Nombre' },
@@ -60,7 +63,7 @@ const VALIDATION_RULES = {
     monto: { min: 0, label: 'Monto' }
   },
   muestra: {
-    producto: { required: true, maxLength: 200, label: 'Producto' },
+    producto: { required: true, maxLength: 65000, label: 'Producto' },
     destinatario: { maxLength: 150, label: 'Destinatario' }
   },
   comunicacion: {
@@ -240,20 +243,6 @@ export default function App() {
   const [isDrawerOpen, setDrawerOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  if (authLoading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0d2c5c', color: '#ffffff' }}>
-        <div style={{ textAlign: 'center' }}>
-          <img src={logo} alt="Don Yeyo" style={{ height: 50, marginBottom: 16 }} />
-          <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Cargando sesión...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <LoginScreen />;
-  }
   
   // Toast & Confirm
   const { toasts, addToast, removeToast } = useToast();
@@ -456,7 +445,10 @@ export default function App() {
       setMuestraLoteInput('');
       fetchData();
     } catch (err) {
-      addToast({ type: 'error', title: 'Error', message: 'No se pudo guardar el registro. Intentá nuevamente.' });
+      const detail = err.response?.data?.error || err.response?.data?.message || err.message;
+      const showDetail = import.meta.env.VITE_SHOW_DETAILED_ERRORS === 'true' || import.meta.env.DEV;
+      const msg = showDetail && detail ? `No se pudo guardar el registro: ${detail}` : 'No se pudo guardar el registro. Intentá nuevamente.';
+      addToast({ type: 'error', title: 'Error al guardar', message: msg, duration: 8000 });
     }
   };
 
@@ -477,7 +469,10 @@ export default function App() {
       addToast({ type: 'success', message: 'Registro eliminado.' });
       fetchData();
     } catch (err) {
-      addToast({ type: 'error', title: 'Error', message: 'No se pudo eliminar el registro.' });
+      const detail = err.response?.data?.error || err.response?.data?.message || err.message;
+      const showDetail = import.meta.env.VITE_SHOW_DETAILED_ERRORS === 'true' || import.meta.env.DEV;
+      const msg = showDetail && detail ? `No se pudo eliminar el registro: ${detail}` : 'No se pudo eliminar el registro.';
+      addToast({ type: 'error', title: 'Error al eliminar', message: msg, duration: 8000 });
     }
   };
 
@@ -604,7 +599,7 @@ export default function App() {
   useEffect(() => {
     if (unviewedAlertsCount > 0 && 'Notification' in window && Notification.permission === 'granted') {
       try {
-        new Notification('TradeCRM — Alertas de Comercio Exterior', {
+        new Notification('ComEx CRM — Alertas de Comercio Exterior', {
           body: `Tenés ${unviewedAlertsCount} alerta(s) de vencimientos o visitas próximas.`,
           icon: '/src/assets/logo-don-yeyo-png-sin-fondo.png'
         });
@@ -715,7 +710,23 @@ export default function App() {
   const setFv = (key, val) => setFormValues(prev => ({ ...prev, [key]: val }));
   const maxLen = (modalType, field) => VALIDATION_RULES[modalType]?.[field]?.maxLength;
 
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0d2c5c', color: '#ffffff' }}>
+        <div style={{ textAlign: 'center' }}>
+          <img src={logo} alt="Don Yeyo" style={{ height: 50, marginBottom: 16 }} />
+          <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Cargando sesión...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+
   return (
+
     <div className="layout">
       {/* TOASTS */}
       <ToastContainer toasts={toasts} removeToast={removeToast} />
@@ -1116,34 +1127,43 @@ export default function App() {
                     } else { prods = [{ nombre: String(m.producto) }]; }
                   } catch { prods = [{ nombre: String(m.producto) }]; }
 
-                  const mainLabel = prods.map(p => `${p.nombre}${p.cantidad ? ` (${p.cantidad} u.)` : ''}`).join(', ');
+                  const sampleTitle = [
+                    m.destinatario,
+                    m.pais_nombre,
+                    fmtDate(m.fecha)
+                  ].filter(Boolean).join(' · ') || 'Muestra sin destinatario';
 
                   return (
-                  <div key={m.id} className="sample-row">
-                    <div style={{flex: 1}}>
-                      <div style={{fontWeight: 600, fontSize: '0.85rem'}}>{mainLabel}</div>
-                      <div className="product-tags" style={{marginTop: 4}}>
-                        {prods.map((p, i) => (
-                          <span key={i} className="product-tag">
-                            <span className="product-tag-name">{p.nombre}</span>
-                            {p.cantidad && <span style={{opacity: 0.85, fontSize: '0.7rem'}}>· {p.cantidad} u.</span>}
-                            {p.lote && <span style={{opacity: 0.85, fontSize: '0.7rem'}}>· Lote: {p.lote}</span>}
-                          </span>
-                        ))}
+                    <div key={m.id} className="sample-row">
+                      <div className="sample-row-main" style={{flex: 1, minWidth: 0, wordBreak: 'break-word', overflowWrap: 'anywhere'}}>
+                        <div style={{fontWeight: 600, fontSize: '0.9rem', lineHeight: 1.35, wordBreak: 'break-word', color: 'var(--text)'}}>
+                          {sampleTitle}
+                        </div>
+                        <div className="product-tags" style={{marginTop: 6}}>
+                          {prods.map((p, i) => (
+                            <span key={i} className="product-tag">
+                              <span className="product-tag-name">{p.nombre}</span>
+                              {p.cantidad && <span style={{opacity: 0.85, fontSize: '0.7rem'}}>· {p.cantidad} u.</span>}
+                              {p.lote && <span style={{opacity: 0.85, fontSize: '0.7rem'}}>· Lote: {p.lote}</span>}
+                            </span>
+                          ))}
+                        </div>
+                        {m.notas && <div style={{fontSize: '0.75rem', marginTop: 4, wordBreak: 'break-word', color: 'var(--text-muted)'}} dangerouslySetInnerHTML={{__html: m.notas}} />}
                       </div>
-                      <div style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{m.destinatario || ''} · {m.pais_nombre || ''} · {fmtDate(m.fecha)}</div>
-                      {m.notas && <div style={{fontSize: '0.75rem', marginTop: 2}} dangerouslySetInnerHTML={{__html: m.notas}} />}
-                    </div>
-                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4}}>
-                      {estadoBadge(m.resultado)}
-                      {m.costo > 0 && <span style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>${parseFloat(m.costo).toLocaleString()}</span>}
-                      <div style={{display: 'flex', gap: 4}}>
-                        <button className="icon-btn" onClick={() => openEdit('muestra', m)}><Edit size={14} /></button>
-                        <button className="icon-btn" onClick={() => requestDelete('muestras', m.id, mainLabel)}><Trash2 size={14} /></button>
+                      <div className="sample-row-side" style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
+                          {estadoBadge(m.resultado)}
+                          {m.costo > 0 && <span style={{fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600}}>${parseFloat(m.costo).toLocaleString()}</span>}
+                        </div>
+                        <div style={{display: 'flex', gap: 4}}>
+                          <button className="icon-btn" onClick={() => openEdit('muestra', m)} title="Editar"><Edit size={14} /></button>
+                          <button className="icon-btn" onClick={() => requestDelete('muestras', m.id, sampleTitle)} title="Eliminar"><Trash2 size={14} /></button>
+                        </div>
                       </div>
                     </div>
-                  </div>
                   );
+
+
                 })
               }
             </>}
@@ -1515,8 +1535,8 @@ export default function App() {
                           <div className="form-group"><label className="form-label">Nro. de reuniones</label><input type="number" min="0" className="form-input" value={fv('ronda_reuniones')} onChange={e => setFv('ronda_reuniones', e.target.value)} /></div>
                         </div>
                         <div className="form-grid-2">
-                          <div className="form-group"><label className="form-label">Importadores contactados</label><input className="form-input" maxLength={200} value={fv('ronda_importadores')} onChange={e => setFv('ronda_importadores', e.target.value)} /></div>
-                          <div className="form-group"><label className="form-label">Pedidos generados (USD)</label><input type="number" min="0" className="form-input" value={fv('ronda_pedidos')} onChange={e => setFv('ronda_pedidos', e.target.value)} /></div>
+                          <div className="form-group"><label className="form-label">Importadores contactados</label><input type="number" min="0" className="form-input" value={fv('ronda_importadores')} onChange={e => setFv('ronda_importadores', e.target.value)} placeholder="0" /></div>
+                          <div className="form-group"><label className="form-label">Pedidos generados (USD)</label><input type="number" min="0" className="form-input" value={fv('ronda_pedidos')} onChange={e => setFv('ronda_pedidos', e.target.value)} placeholder="0.00" /></div>
                         </div>
                         <div className="form-group" style={{marginBottom: 0}}><label className="form-label">Resultado general</label><select className="form-input" value={fv('ronda_resultado') || 'Positivo'} onChange={e => setFv('ronda_resultado', e.target.value)}><option>Muy positivo</option><option>Positivo</option><option>Neutral</option><option>Sin resultados</option></select></div>
                       </div>

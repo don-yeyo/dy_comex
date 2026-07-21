@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }) => {
           } else {
             setIsAuthenticated(false);
             setUser(null);
-            setAuthError(`La cuenta ${pendingUser.email} no está autorizada para ingresar a TradeCRM.`);
+            setAuthError(`La cuenta ${pendingUser.email} no está autorizada para ingresar a ComEx CRM.`);
           }
         } catch (error) {
           console.warn("Validación de email con backend diferida:", error.message);

@@ -1,4 +1,4 @@
-# Manual de Usuario — TradeCRM
+# Manual de Usuario — ComEx CRM
 
 **Sistema de gestión de comercio exterior para Don Yeyo S.A.**
 
@@ -40,7 +40,7 @@
   - **Ícono gris**: no tenés alertas sin visualizar.
   - **Badge rojo con número**: indica la cantidad de **alertas nuevas sin visualizar**.
 - Al hacer click en la campana, el sistema te redirige directamente a la sección **Alertas** y marca las alertas como leídas.
-- **PWA (Progressive Web App)**: podés instalar TradeCRM en tu celular o PC. Si aceptás los permisos de notificación, recibirás alertas push ante vencimientos o visitas próximas.
+- **PWA (Progressive Web App)**: podés instalar ComEx CRM en tu celular o PC. Si aceptás los permisos de notificación, recibirás alertas push ante vencimientos o visitas próximas.
 
 ### Zoom de texto
 - En el header hay 3 botones **A** que permiten ajustar el tamaño de texto y controles:
@@ -216,30 +216,22 @@ Cada oportunidad muestra una barra de progreso visual con el porcentaje de proba
 | Monto (USD) | Valor estimado | No (mín. 0) |
 | Probabilidad | 0 a 100% | No |
 | Etapa | Fase del pipeline | No |
-| Cierre estimado | Fecha estimada de cierre | No |
-| Notas | Detalles con formato | No |
-
----
-
-## Muestras y comunicaciones
-
-**¿Para qué sirve?** Doble funcionalidad en una misma pantalla con pestañas.
 
 ### Pestaña: Muestras enviadas
 Registro de muestras de producto enviadas a potenciales clientes.
 
+- **Título formato estándar**: Cada tarjeta de muestra se identifica con la cabecera `Destinatario · País · Fecha` (ej: *Pepitos y Cia · Brasil · 21 de jul de 2026*).
 - **Selección múltiple de productos**: cada muestra puede contener uno o varios productos.
 - **Autocompletado inteligente de Finnegans**: al escribir 3 o más caracteres en el buscador de productos, se filtran en tiempo real los productos del catálogo de Finnegans ERP (filtrados por "Productos Terminados"). Busca por código o nombre del producto (coincidencia parcial).
+- **Detalle de cantidad y lote**: por cada producto podés registrar la cantidad enviada (ej: 10 u. / 5 cajas) y el número de lote (ej: L-2026-04) para trazabilidad.
 - **Productos personalizados**: además del catálogo de Finnegans, podés ingresar cualquier producto o descripción libremente.
 - **Caché diaria**: el catálogo de productos de Finnegans se sincroniza automáticamente una vez al día para garantizar máxima velocidad y disponibilidad offline.
 - **Filtrar por resultado**: Pendiente, Positivo (→ pedido), En evaluación, Negativo.
-- Cada muestra muestra los productos incluidos, destinatario, país, fecha y costo.
+- **Almacenamiento extendido**: Soporta muestras compuestas por múltiples productos sin restricciones de caracteres.
 
 ### Pestaña: Log de comunicaciones
 Historial cronológico de todas las interacciones con contactos.
 
-- **Filtrar por tipo**: Email, Llamada, WhatsApp, Reunión, Videollamada.
-- Se muestra en formato de **timeline** con íconos por tipo.
 - Cada comunicación tiene un campo de "Próximo paso" para no perder seguimiento.
 
 ---
@@ -288,7 +280,13 @@ Los documentos con vencimiento cercano (30 días) aparecen automáticamente en l
 ### Precios de competidores
 - Registrá precios de productos competidores observados en ferias, góndolas o investigación online.
 - Incluye cálculo automático de **precio por kg** si completás el precio y el peso.
-- Campos: competidor, producto, país, categoría, precio, unidad, peso, fuente, fecha.
+- **Cargador Pro de Imágenes de Góndola (`ProImageUploader`)**:
+  - Permite arrastrar y soltar (Drag & Drop) o capturar fotos directamente desde la cámara del celular.
+  - Soporta subir hasta 5 fotos de producto o góndola por registro.
+  - Compresión automática en el navegador (redimensión a 800px) para máxima velocidad de carga.
+  - Previsualización en miniaturas con opción de ver en pantalla completa (Lightbox).
+- Campos: competidor, producto, país, categoría, precio, unidad, peso, fuente, fecha, fotos de góndola.
+
 
 ### Tendencias de mercado
 - Notas de inteligencia sobre tendencias de consumo, regulaciones, competencia, logística, oportunidades y riesgos.
@@ -366,4 +364,4 @@ Los cálculos guardados aparecen en el panel derecho para referencia futura.
 
 ---
 
-*Manual generado para TradeCRM v1.0.0 — Don Yeyo S.A.*
+*Manual generado para ComEx CRM v1.0.0 — Don Yeyo S.A.*

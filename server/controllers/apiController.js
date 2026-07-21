@@ -209,12 +209,32 @@ exports.getVisitas = async (req, res) => {
   }
 };
 
+const parseNum = (val, isFloat = false) => {
+  if (val === null || val === undefined || val === '') return 0;
+  const num = isFloat ? parseFloat(val) : parseInt(val, 10);
+  return isNaN(num) ? 0 : num;
+};
+
 exports.createVisita = async (req, res) => {
   const { titulo, tipo, estado, fecha, lugar, contactos, notas, proximo, ronda_org, ronda_reuniones, ronda_importadores, ronda_pedidos, ronda_resultado } = req.body;
   try {
     const [result] = await pool.query(
       'INSERT INTO visitas (titulo, tipo, estado, fecha, lugar, contactos, notas, proximo, ronda_org, ronda_reuniones, ronda_importadores, ronda_pedidos, ronda_resultado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [titulo, tipo || 'Feria internacional', estado || 'Planificada', toSqlDate(fecha) || toSqlDate(new Date()), lugar || null, contactos || null, notas || null, proximo || null, ronda_org || null, ronda_reuniones || 0, ronda_importadores || 0, ronda_pedidos || 0.00, ronda_resultado || null]
+      [
+        titulo,
+        tipo || 'Feria internacional',
+        estado || 'Planificada',
+        toSqlDate(fecha) || toSqlDate(new Date()),
+        lugar || null,
+        contactos || null,
+        notas || null,
+        proximo || null,
+        ronda_org || null,
+        parseNum(ronda_reuniones),
+        parseNum(ronda_importadores),
+        parseNum(ronda_pedidos, true),
+        ronda_resultado || null
+      ]
     );
     res.json({ id: result.insertId, message: 'Visita guardada con éxito' });
   } catch (err) {
@@ -228,13 +248,29 @@ exports.updateVisita = async (req, res) => {
   try {
     await pool.query(
       'UPDATE visitas SET titulo = COALESCE(?, titulo), tipo = COALESCE(?, tipo), estado = ?, fecha = ?, lugar = ?, contactos = ?, notas = ?, proximo = ?, ronda_org = ?, ronda_reuniones = ?, ronda_importadores = ?, ronda_pedidos = ?, ronda_resultado = ? WHERE id = ?',
-      [titulo, tipo || 'Feria internacional', estado || 'Planificada', toSqlDate(fecha), lugar || null, contactos || null, notas || null, proximo || null, ronda_org || null, ronda_reuniones || 0, ronda_importadores || 0, ronda_pedidos || 0.00, ronda_resultado || null, id]
+      [
+        titulo,
+        tipo || 'Feria internacional',
+        estado || 'Planificada',
+        toSqlDate(fecha),
+        lugar || null,
+        contactos || null,
+        notas || null,
+        proximo || null,
+        ronda_org || null,
+        parseNum(ronda_reuniones),
+        parseNum(ronda_importadores),
+        parseNum(ronda_pedidos, true),
+        ronda_resultado || null,
+        id
+      ]
     );
     res.json({ message: 'Visita actualizada con éxito' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 exports.deleteVisita = async (req, res) => {
   const { id } = req.params;
