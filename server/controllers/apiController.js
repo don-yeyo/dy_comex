@@ -642,16 +642,27 @@ exports.validateEmail = (req, res) => {
     return res.status(400).json({ error: 'Email requerido', authorized: false });
   }
 
-  const authorizedEmailsStr = process.env.AUTHORIZED_EMAILS || '';
-  const authorizedEmails = authorizedEmailsStr.split(',').map(e => e.trim().toLowerCase()).filter(e => e);
+  const cleanInputEmail = email.trim().toLowerCase();
 
-  if (authorizedEmails.length === 0) {
-    return res.json({ authorized: true, message: 'No hay restricción de emails configurada' });
+  // Limpiar comillas iniciales/finales y espacios de las variables de entorno
+  const authorizedEmailsStr = (process.env.AUTHORIZED_EMAILS || '').replace(/^["']|["']$/g, '');
+  const authorizedEmails = authorizedEmailsStr.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+
+  const allowedDomain = (process.env.ALLOWED_EMAIL_DOMAIN || 'donyeyo.com.ar').replace(/^["']|["']$/g, '').trim().toLowerCase();
+  const inputDomain = cleanInputEmail.split('@')[1] || '';
+
+  // Si no hay lista explícita ni dominio, permitir el ingreso
+  if (authorizedEmails.length === 0 && !allowedDomain) {
+    return res.json({ authorized: true, message: 'Sin restricciones configuradas' });
   }
 
-  const isAuthorized = authorizedEmails.includes(email.toLowerCase());
-  res.json({ authorized: isAuthorized });
+  // Autorizado si está en la lista explícita O si coincide con el dominio corporativo
+  const isAuthorized = (authorizedEmails.length > 0 && authorizedEmails.includes(cleanInputEmail)) ||
+                       (allowedDomain && inputDomain === allowedDomain);
+
+  res.json({ authorized: isAuthorized, email: cleanInputEmail });
 };
+
 
 exports.getSystemVersion = (req, res) => {
   res.json({ version: '1.0.0', status: 'online' });
