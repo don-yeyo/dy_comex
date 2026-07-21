@@ -23,10 +23,19 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || e.request.url.includes('/api/')) return;
+  
+  if (e.request.url.includes('/assets/')) {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
   e.respondWith(
     caches.match(e.request).then((cached) => cached || fetch(e.request))
   );
 });
+
 
 self.addEventListener('push', (e) => {
   const data = e.data ? e.data.json() : { title: 'ComEx CRM Alerta', body: 'Tenés nuevas alertas de comercio exterior.' };
