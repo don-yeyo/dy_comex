@@ -1,4 +1,9 @@
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+
+const CACHE_DIR = path.join(__dirname, '..', 'cache');
+const PRODUCTOS_CACHE_FILE = path.join(CACHE_DIR, 'productos.json');
 
 class FinnegansService {
   constructor() {
@@ -9,9 +14,15 @@ class FinnegansService {
     this.empresaCod = process.env.FINNEGANS_EMPRESA_COD || 'EMPRE01';
     this.timeout = (parseInt(process.env.FINNEGANS_TIMEOUT) || 60) * 1000;
     this.clientesReport = process.env.FINNEGANS_CLIENTES_REPORT || 'USR_ClientesExportacionDY';
+    this.productosReport = process.env.FINNEGANS_PRODUCTOS_REPORT || 'ListadoDeProductos';
 
     this._accessToken = null;
     this._tokenExpiry = null;
+
+    // Asegurar que el directorio de caché exista
+    if (!fs.existsSync(CACHE_DIR)) {
+      fs.mkdirSync(CACHE_DIR, { recursive: true });
+    }
   }
 
   async _getAccessToken() {
@@ -98,6 +109,89 @@ class FinnegansService {
     }
   }
 
+  /**
+   * Obtiene productos terminados de Finnegans con caché diaria en archivo JSON.
+   * Solo retorna items donde RUBRO === 'PRODUCTOS TERMINADOS'.
+   * La caché se renueva una vez al día en el primer request.
+   */
+  async getProductosTerminados() {
+    // Intentar leer caché
+    const cached = this._readProductosCache();
+    if (cached) {
+      console.log(`[Finnegans] Productos servidos desde caché (${cached.length} items)`);
+      return cached;
+    }
+
+    // Caché expirada o inexistente: consultar API
+    console.log('[Finnegans] Caché de productos expirada o inexistente. Consultando API...');
+    const params = {
+      PARAMWEBREPORT_FiltroActivo: 'true',
+      PARAMWEBREPORT_Empresa: this.empresaCod
+    };
+
+    try {
+      const data = await this.executeReport(this.productosReport, params);
+      if (!Array.isArray(data)) {
+        console.warn('[Finnegans] Respuesta de productos no es un array.');
+        return this._getMockProductos();
+      }
+
+      // Filtrar solo PRODUCTOS TERMINADOS
+      const filtered = data
+        .filter(item => item.RUBRO === 'PRODUCTOS TERMINADOS')
+        .map(item => ({
+          id: item.PRODUCTOID,
+          codigo: item.CODIGO || '',
+          nombre: item.PRODUCTONOMBRE || '',
+          marca: item.MARCA || '',
+          familia: item.FAMILIA || '',
+          subfamilia: item.SUBFAMILIA || ''
+        }));
+
+      // Guardar en caché
+      this._writeProductosCache(filtered);
+      console.log(`[Finnegans] ${filtered.length} productos terminados cacheados.`);
+      return filtered;
+    } catch (err) {
+      console.error('[Finnegans] Error obteniendo productos:', err.message);
+      return this._getMockProductos();
+    }
+  }
+
+  /**
+   * Lee la caché de productos. Retorna null si no existe o si es de un día anterior.
+   */
+  _readProductosCache() {
+    try {
+      if (!fs.existsSync(PRODUCTOS_CACHE_FILE)) return null;
+      const raw = fs.readFileSync(PRODUCTOS_CACHE_FILE, 'utf-8');
+      const cache = JSON.parse(raw);
+      const today = new Date().toISOString().split('T')[0];
+      if (cache.lastUpdated === today && Array.isArray(cache.data)) {
+        return cache.data;
+      }
+      return null; // Caché de otro día
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Escribe la caché de productos con la fecha de hoy.
+   */
+  _writeProductosCache(data) {
+    try {
+      const cache = {
+        lastUpdated: new Date().toISOString().split('T')[0],
+        count: data.length,
+        data
+      };
+      fs.writeFileSync(PRODUCTOS_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('[Finnegans] Error escribiendo caché de productos:', err.message);
+    }
+  }
+
   _getMockData(reportName) {
     if (reportName === this.clientesReport) {
       return [
@@ -109,7 +203,39 @@ class FinnegansService {
         { CODIGO: 'CLI-006', NOMBRE: 'Tienda Inglesa S.A.', PAIS: 'Uruguay' }
       ];
     }
+    if (reportName === this.productosReport) {
+      return this._getMockProductosRaw();
+    }
     return [];
+  }
+
+  _getMockProductosRaw() {
+    return [
+      { PRODUCTOID: 6702, CODIGO: '20351', PRODUCTONOMBRE: 'PAN DE SALVADO x400g. CALIDAD ES PRIMER PRECIO', MARCA: 'BLANCA', FAMILIA: 'PANIFICADOS', SUBFAMILIA: 'PAN DE MOLDE', RUBRO: 'PRODUCTOS TERMINADOS' },
+      { PRODUCTOID: 1001, CODIGO: '10100', PRODUCTONOMBRE: 'TAPAS PARA EMPANADAS DON YEYO x12u 330g', MARCA: 'DON YEYO', FAMILIA: 'TAPAS', SUBFAMILIA: 'EMPANADAS', RUBRO: 'PRODUCTOS TERMINADOS' },
+      { PRODUCTOID: 1002, CODIGO: '10101', PRODUCTONOMBRE: 'TAPAS PARA EMPANADAS DON YEYO x24u 660g', MARCA: 'DON YEYO', FAMILIA: 'TAPAS', SUBFAMILIA: 'EMPANADAS', RUBRO: 'PRODUCTOS TERMINADOS' },
+      { PRODUCTOID: 1003, CODIGO: '10200', PRODUCTONOMBRE: 'TAPAS PARA PASCUALINA DON YEYO x2u 400g', MARCA: 'DON YEYO', FAMILIA: 'TAPAS', SUBFAMILIA: 'PASCUALINA', RUBRO: 'PRODUCTOS TERMINADOS' },
+      { PRODUCTOID: 1004, CODIGO: '10300', PRODUCTONOMBRE: 'TAPAS PARA EMPANADAS DeVIANO x12u 330g', MARCA: 'DEVIANO', FAMILIA: 'TAPAS', SUBFAMILIA: 'EMPANADAS', RUBRO: 'PRODUCTOS TERMINADOS' },
+      { PRODUCTOID: 1005, CODIGO: '10400', PRODUCTONOMBRE: 'RAVIOLES DON YEYO RICOTTA x500g', MARCA: 'DON YEYO', FAMILIA: 'PASTAS', SUBFAMILIA: 'RAVIOLES', RUBRO: 'PRODUCTOS TERMINADOS' },
+      { PRODUCTOID: 1006, CODIGO: '10401', PRODUCTONOMBRE: 'RAVIOLES DON YEYO CARNE x500g', MARCA: 'DON YEYO', FAMILIA: 'PASTAS', SUBFAMILIA: 'RAVIOLES', RUBRO: 'PRODUCTOS TERMINADOS' },
+      { PRODUCTOID: 1007, CODIGO: '10500', PRODUCTONOMBRE: 'TORTILLAS DE TRIGO DON YEYO x8u 320g', MARCA: 'DON YEYO', FAMILIA: 'TORTILLAS', SUBFAMILIA: 'TORTILLAS', RUBRO: 'PRODUCTOS TERMINADOS' },
+      { PRODUCTOID: 1008, CODIGO: '10600', PRODUCTONOMBRE: 'PREPIZZA DON YEYO x2u 460g', MARCA: 'DON YEYO', FAMILIA: 'PANIFICADOS', SUBFAMILIA: 'PREPIZZA', RUBRO: 'PRODUCTOS TERMINADOS' },
+      { PRODUCTOID: 9999, CODIGO: '90000', PRODUCTONOMBRE: 'MATERIA PRIMA HARINA 000', MARCA: '', FAMILIA: 'INSUMOS', SUBFAMILIA: 'HARINA', RUBRO: 'MATERIA PRIMA' }
+    ];
+  }
+
+  _getMockProductos() {
+    const raw = this._getMockProductosRaw();
+    return raw
+      .filter(item => item.RUBRO === 'PRODUCTOS TERMINADOS')
+      .map(item => ({
+        id: item.PRODUCTOID,
+        codigo: item.CODIGO,
+        nombre: item.PRODUCTONOMBRE,
+        marca: item.MARCA,
+        familia: item.FAMILIA,
+        subfamilia: item.SUBFAMILIA
+      }));
   }
 }
 

@@ -6,10 +6,27 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="Referrer-Policy" content="no-referrer">
+    <link rel="icon" href="/src/assets/logo-don-yeyo-png-sin-fondo.png" type="image/png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0d2c5c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TradeCRM">
+    <link rel="apple-touch-icon" href="/src/assets/logo-don-yeyo-png-sin-fondo.png">
+    <meta name="description" content="TradeCRM — Sistema de gestión de comercio exterior para Don Yeyo S.A. Pipeline, contactos, documentos, cobranzas e inteligencia comercial.">
     <title>TradeCRM — Comercio Exterior Don Yeyo</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('[PWA] ServiceWorker registrado con éxito:', reg.scope))
+            .catch(err => console.error('[PWA] Error registrando ServiceWorker:', err));
+        });
+      }
+    </script>
   </body>
 </html>

@@ -35,6 +35,13 @@
 - Usá el ícono de **luna/sol** en el header para alternar entre modo claro y oscuro.
 - La preferencia se guarda automáticamente.
 
+### 🔔 Campana de alertas y notificaciones PWA
+- En la barra superior (header) tenés el ícono de **campana de alertas**:
+  - **Ícono gris**: no tenés alertas sin visualizar.
+  - **Badge rojo con número**: indica la cantidad de **alertas nuevas sin visualizar**.
+- Al hacer click en la campana, el sistema te redirige directamente a la sección **Alertas** y marca las alertas como leídas.
+- **PWA (Progressive Web App)**: podés instalar TradeCRM en tu celular o PC. Si aceptás los permisos de notificación, recibirás alertas push ante vencimientos o visitas próximas.
+
 ### Zoom de texto
 - En el header hay 3 botones **A** que permiten ajustar el tamaño de texto y controles:
   - **A** chico: más compacto, ideal para pantallas con mucha información.
@@ -131,18 +138,24 @@
 
 ### Funciones
 - **Buscar**: escribí un nombre, empresa o apellido para filtrar.
-- **Filtrar por país**: acotá la lista a un país específico.
+- **Filtrar por país**: acotá la lista a un país específico usando el selector.
 - **Filtrar por rol**: importador, distribuidor, broker, retailer u otro.
-- **Sync ERP**: sincronizá la base de contactos con Finnegans ERP.
+- **Sincronización con Finnegans ERP**: botón "Sincronizar Finnegans ERP".
+
+### 🔄 ¿Cómo funciona la Sincronización con Finnegans ERP?
+1. Al pulsar el botón **"Sincronizar Finnegans ERP"**, el sistema efectúa una llamada en segundo plano a la API de Finnegans utilizando credenciales OAuth2 seguras.
+2. Consulta el reporte dinámico `USR_ClientesExportacionDY` configurado en el ERP.
+3. Extrae la lista de clientes activos clasificados como clientes de comercio exterior/exportación, obteniendo su código de organización, razón social y país.
+4. Los datos sincronizados quedan disponibles en la interfaz para contrastar con la base local y vincular registros comerciales.
 
 ### Campos del formulario
 | Campo | Descripción | Obligatorio | Máx. caracteres |
 |---|---|---|---|
-| Nombre | Nombre de pila | Sí | 100 |
+| Nombre | Nombre de pila o Razón Social | Sí | 100 |
 | Apellido | Apellido | No | 100 |
 | Empresa | Empresa u organización | No | 150 |
 | Rol | Importador, Distribuidor, Broker, Retailer, Otro | No | — |
-| País | País del contacto | No | — |
+| País | Selector entre los países dados de alta | No | — |
 | Ciudad | Ciudad | No | 100 |
 | Email | Dirección de correo electrónico | No | 150 |
 | Teléfono | Teléfono o WhatsApp | No | 50 |
@@ -215,8 +228,12 @@ Cada oportunidad muestra una barra de progreso visual con el porcentaje de proba
 ### Pestaña: Muestras enviadas
 Registro de muestras de producto enviadas a potenciales clientes.
 
+- **Selección múltiple de productos**: cada muestra puede contener uno o varios productos.
+- **Autocompletado inteligente de Finnegans**: al escribir 3 o más caracteres en el buscador de productos, se filtran en tiempo real los productos del catálogo de Finnegans ERP (filtrados por "Productos Terminados"). Busca por código o nombre del producto (coincidencia parcial).
+- **Productos personalizados**: además del catálogo de Finnegans, podés ingresar cualquier producto o descripción libremente.
+- **Caché diaria**: el catálogo de productos de Finnegans se sincroniza automáticamente una vez al día para garantizar máxima velocidad y disponibilidad offline.
 - **Filtrar por resultado**: Pendiente, Positivo (→ pedido), En evaluación, Negativo.
-- Cada muestra muestra el producto, destinatario, país, fecha y costo.
+- Cada muestra muestra los productos incluidos, destinatario, país, fecha y costo.
 
 ### Pestaña: Log de comunicaciones
 Historial cronológico de todas las interacciones con contactos.

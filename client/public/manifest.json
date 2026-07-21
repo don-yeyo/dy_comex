@@ -1,0 +1,22 @@
+{
+  "short_name": "TradeCRM",
+  "name": "TradeCRM — Don Yeyo S.A.",
+  "description": "Sistema de gestión de comercio exterior para Don Yeyo S.A. Pipeline, contactos, documentos, cobranzas e inteligencia comercial.",
+  "icons": [
+    {
+      "src": "/src/assets/logo-don-yeyo-png-sin-fondo.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/src/assets/logo-don-yeyo-png-sin-fondo.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0d2c5c",
+  "theme_color": "#0d2c5c",
+  "display": "standalone",
+  "orientation": "portrait-primary"
+}

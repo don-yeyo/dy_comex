@@ -44,10 +44,29 @@ Para que el login corporativo funcione con cuentas `@donyeyo.com.ar`, se debe re
    - **Supported account types**: `Accounts in this organizational directory only` (Single tenant) o `Multitenant`.
    - **Redirect URI**: Selecciona `Single-page application (SPA)` y coloca `http://localhost:3000` (desarrollo local) y la URL de tu Netlify en producción.
 3. En la sección **Authentication**:
-   - Asegúrate de habilitar **Access tokens** e **ID tokens** (Implicit grant flow si utilizas flujos simplificados, aunque MSAL Browser v3 prefiere Proof Key for Code Exchange (PKCE)).
-4. En **API permissions**:
-   - Otorga el permiso `User.Read` (Microsoft Graph) para poder leer los datos básicos del usuario logueado.
-5. Copia el **Application (client) ID** y el **Directory (tenant) ID** e introdúcelos en tu archivo `.env`.
+   - Habilita **Access tokens** e **ID tokens** (SPA con PKCE).
+4. Copia el **Application (client) ID** y el **Directory (tenant) ID** e introdúcelos en tus archivos `.env`:
+
+### Variables de Entorno de Autenticación
+- **En el Servidor (`server/.env`):**
+  - `AZURE_AD_CLIENT_ID`: ID de aplicación de Azure AD.
+  - `AZURE_AD_TENANT_ID`: ID de inquilino/tenant de Azure AD.
+  - `AUTHORIZED_EMAILS`: Lista separada por comas de correos corporativos autorizados para ingresar (ej. `gabrielt@donyeyo.com.ar,marianeladm@donyeyo.com.ar`).
+- **En el Cliente (`client/.env`):**
+  - `VITE_AZURE_AD_CLIENT_ID`: ID de aplicación de Azure AD.
+  - `VITE_AZURE_AD_TENANT_ID`: ID de tenant de Azure AD.
+  - `VITE_MOCK_AUTH`: (`true` / `false`) permite omitir el login de Microsoft en entornos de desarrollo local.
+  - `VITE_MOCK_AUTH_EMAIL`: Email del usuario en modo mock.
+  - `VITE_MOCK_AUTH_NAME`: Nombre del usuario en modo mock.
+
+---
+
+## 🖼️ Uploader Pro de Imágenes y Fotos de Góndola (`ProImageUploader`)
+El módulo de **Precios de Competidores** incluye un cargador multimedia avanzado:
+- **Drag & Drop**: arrastrar y soltar archivos directamente en la zona de carga.
+- **Multifile**: permite subir hasta 5 fotos por registro.
+- **Compresión en Cliente**: las imágenes en formato JPG/PNG/HEIC se redimensionan en el navegador mediante HTML5 Canvas (máx. 800px) y se optimizan a formato Base64.
+- **Previsualización & Lightbox**: grilla de miniaturas con nombres, tamaño y visor modal a pantalla completa.
 
 ---
 

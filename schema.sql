@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS `contactos` (
   `ciudad` VARCHAR(100) DEFAULT NULL,
   `email` VARCHAR(100) DEFAULT NULL,
   `telefono` VARCHAR(50) DEFAULT NULL,
-  `estado` ENUM('Activo', 'Inactivo', 'En Negociacion') DEFAULT 'Activo',
+  `estado` VARCHAR(50) DEFAULT 'Activo',
   `notas` TEXT DEFAULT NULL,
   `finnegans_id` VARCHAR(50) DEFAULT NULL, -- Relación con el ID del ERP Finnegans
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS `oportunidades` (
 -- Tabla de Muestras enviadas
 CREATE TABLE IF NOT EXISTS `muestras` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `producto` VARCHAR(150) NOT NULL,
+  `producto` TEXT NOT NULL,
   `destinatario` VARCHAR(150) DEFAULT NULL,
   `pais_id` INT DEFAULT NULL,
   `fecha` DATE NOT NULL,
@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS `precios_competidores` (
   `peso` DECIMAL(8,3) DEFAULT 1.000, -- En kilogramos para autocalcular precio/kg
   `fuente` VARCHAR(150) DEFAULT NULL,
   `fecha` DATE NOT NULL,
+  `imagen_url` MEDIUMTEXT DEFAULT NULL, -- Fotos o imágenes adjuntas (Base64)
   `notas` TEXT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`pais_id`) REFERENCES `paises`(`id`) ON DELETE SET NULL

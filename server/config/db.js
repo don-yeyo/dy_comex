@@ -16,10 +16,18 @@ console.log(`[Database] Intentando conectar a MySQL en ${dbConfig.host}:${dbConf
 
 const pool = mysql.createPool(dbConfig);
 
-// Verificar la conexión de forma asíncrona
+// Verificar la conexión de forma asíncrona y ejecutar migraciones automáticas
 pool.getConnection()
-  .then(conn => {
+  .then(async conn => {
     console.log('[Database] Conexión a MySQL establecida correctamente.');
+    try {
+      // 1. Modificar contactos.estado a VARCHAR(50) para evitar truncado de ENUM
+      await conn.query(`ALTER TABLE contactos MODIFY COLUMN estado VARCHAR(50) DEFAULT 'Activo'`);
+    } catch (e) { /* Columna ya modificada o tabla inexistente */ }
+    try {
+      // 2. Agregar imagen_url MEDIUMTEXT a precios_competidores
+      await conn.query(`ALTER TABLE precios_competidores ADD COLUMN imagen_url MEDIUMTEXT DEFAULT NULL`);
+    } catch (e) { /* Columna ya existe */ }
     conn.release();
   })
   .catch(err => {

@@ -3,14 +3,20 @@ const router = express.Router();
 const apiController = require('../controllers/apiController');
 const auth = require('../middleware/auth');
 
-// Aplicar middleware de autenticación de Microsoft a todas las rutas
+// Rutas públicas de sistema y validación de auth
+router.get('/system/validate-email', apiController.validateEmail);
+router.get('/system/version', apiController.getSystemVersion);
+
+// Aplicar middleware de autenticación de Microsoft a todas las rutas protegidas
 router.use(auth);
 
 // Ruta Me
 router.get('/me', apiController.getMe);
 
+
 // Rutas de Finnegans
 router.get('/finnegans/clientes', apiController.getFinnegansClientes);
+router.get('/finnegans/productos', apiController.getProductosFinnegans);
 
 // Rutas de Tareas
 router.get('/tareas', apiController.getTareas);

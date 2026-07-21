@@ -37,3 +37,6 @@ client/.env
 *.njsproj
 *.sln
 *.sw?
+
+# Cache de productos Finnegans (se regenera diariamente)
+server/cache/

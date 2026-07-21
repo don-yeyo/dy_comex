@@ -14,6 +14,10 @@ import logo from './assets/logo-don-yeyo-png-sin-fondo.png';
 import { ToastContainer, useToast } from './components/Toast';
 import ConfirmModal from './components/ConfirmModal';
 import RichTextEditor from './components/RichTextEditor';
+import ProductAutocomplete from './components/ProductAutocomplete';
+import ProImageUploader from './components/ProImageUploader';
+import LoginScreen from './components/LoginScreen';
+import { useAuth } from './config/AuthContext';
 import './App.css';
 
 // Config from env
@@ -107,17 +111,65 @@ function validateForm(modalType, values) {
   return errors;
 }
 
-// Helper para formatear fecha
+// Helpers de fecha ultra-robustos (evitan Invalid Date y NaNd)
+const parseDateStr = (d) => {
+  if (!d) return null;
+  const s = String(d).trim().substring(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const dt = new Date(s + 'T12:00:00');
+  return isNaN(dt.getTime()) ? null : dt;
+};
+
 const fmtDate = (d) => {
-  if (!d) return '—';
-  const dt = new Date(d + 'T12:00');
+  const dt = parseDateStr(d);
+  if (!dt) return '—';
   return dt.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-// Helper para días desde hoy
 const daysFrom = (d) => {
-  if (!d) return 9999;
-  return Math.round((new Date(d + 'T12:00') - new Date()) / (1000 * 60 * 60 * 24));
+  const dt = parseDateStr(d);
+  if (!dt) return 9999;
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  return Math.round((dt - today) / (1000 * 60 * 60 * 24));
+};
+
+const toSqlDate = (d) => {
+  if (!d) return null;
+  const s = String(d).trim();
+  if (s.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(s)) {
+    return s.substring(0, 10);
+  }
+  return null;
+};
+
+// Compresor de imágenes para fotos de competidores
+const compressImage = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        let width = img.width;
+        let height = img.height;
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 };
 
 // Badge de prioridad
@@ -179,12 +231,29 @@ const lsSet = (key, val) => {
 };
 
 export default function App() {
+  const { isAuthenticated, user: authUser, logout, loading: authLoading } = useAuth();
+  const user = authUser || { name: APP_CONFIG.defaultUserName, email: APP_CONFIG.defaultUserEmail, rol: 'admin' };
+
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const [uiZoom, setUiZoom] = useState(localStorage.getItem('uiZoom') || 'md');
-  const [user] = useState({ name: APP_CONFIG.defaultUserName, email: APP_CONFIG.defaultUserEmail, rol: 'admin' });
   const [activeTab, setActiveTab] = useState(lsGet('activeTab', 'dashboard'));
   const [isDrawerOpen, setDrawerOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0d2c5c', color: '#ffffff' }}>
+        <div style={{ textAlign: 'center' }}>
+          <img src={logo} alt="Don Yeyo" style={{ height: 50, marginBottom: 16 }} />
+          <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Cargando sesión...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
   
   // Toast & Confirm
   const { toasts, addToast, removeToast } = useToast();
@@ -204,6 +273,14 @@ export default function App() {
   const [calculos, setCalculos] = useState([]);
   const [cobranzas, setCobranzas] = useState([]);
   const [tareas, setTareas] = useState([]);
+  const [productosCatalogo, setProductosCatalogo] = useState([]);
+
+  // Estado temporal para multi-producto en muestras
+  const [muestraProductos, setMuestraProductos] = useState([]);
+  const [muestraProductoInput, setMuestraProductoInput] = useState('');
+  const [muestraCantInput, setMuestraCantInput] = useState('');
+  const [muestraLoteInput, setMuestraLoteInput] = useState('');
+  const [previewImage, setPreviewImage] = useState(null);
 
   // Estados de Formularios y Modales
   const [showModal, setShowModal] = useState(null);
@@ -284,6 +361,14 @@ export default function App() {
       setCalculos(calculosRes.data);
       setCobranzas(cobranzasRes.data);
       setTareas(tareasRes.data);
+
+      // Cargar catálogo de productos Finnegans (con caché diaria en backend)
+      try {
+        const prodRes = await axios.get('/finnegans/productos');
+        setProductosCatalogo(prodRes.data || []);
+      } catch (prodErr) {
+        console.warn('No se pudo cargar catálogo de productos Finnegans:', prodErr.message);
+      }
     } catch (err) {
       console.error('Error cargando datos de la API:', err);
     }
@@ -330,24 +415,45 @@ export default function App() {
   // ========== CRUD genérico con validación ==========
   const handleSave = async (e, endpoint) => {
     e.preventDefault();
+    let payload = { ...formValues };
+
+    // Saneamiento de fechas para evitar errores MySQL
+    ['fecha', 'cierre', 'vencimiento', 'tc_fecha', 'embarque'].forEach(k => {
+      if (payload[k] !== undefined) {
+        payload[k] = toSqlDate(payload[k]);
+      }
+    });
+
+    // Para muestras: serializar productos como JSON array de objetos
+    if (showModal === 'muestra') {
+      if (muestraProductos.length === 0) {
+        addToast({ type: 'error', title: 'Error de validación', message: 'Agregá al menos un producto a la muestra.', duration: 6000 });
+        return;
+      }
+      payload.producto = JSON.stringify(muestraProductos);
+    }
     // Validar
-    const errors = validateForm(showModal, formValues);
+    const errors = validateForm(showModal, payload);
     if (errors.length > 0) {
       addToast({ type: 'error', title: 'Error de validación', message: errors.join(' · '), duration: 6000 });
       return;
     }
     try {
-      if (formValues.id) {
-        await axios.put(`/${endpoint}/${formValues.id}`, formValues);
+      if (payload.id) {
+        await axios.put(`/${endpoint}/${payload.id}`, payload);
       } else {
-        await axios.post(`/${endpoint}`, formValues);
+        await axios.post(`/${endpoint}`, payload);
         // Guardar valores frecuentes para siguiente ingreso
-        if (formValues.pais_id) lsSet('lastPaisId', formValues.pais_id);
-        if (formValues.marca) lsSet('lastMarca', formValues.marca);
+        if (payload.pais_id) lsSet('lastPaisId', payload.pais_id);
+        if (payload.marca) lsSet('lastMarca', payload.marca);
       }
-      addToast({ type: 'success', message: formValues.id ? 'Registro actualizado correctamente.' : 'Registro creado correctamente.' });
+      addToast({ type: 'success', message: payload.id ? 'Registro actualizado correctamente.' : 'Registro creado correctamente.' });
       setShowModal(null);
       setFormValues({});
+      setMuestraProductos([]);
+      setMuestraProductoInput('');
+      setMuestraCantInput('');
+      setMuestraLoteInput('');
       fetchData();
     } catch (err) {
       addToast({ type: 'error', title: 'Error', message: 'No se pudo guardar el registro. Intentá nuevamente.' });
@@ -377,12 +483,38 @@ export default function App() {
 
   const openEdit = (modalType, item) => {
     setFormValues({ ...item });
+    // Para muestras: parsear productos JSON (objetos o strings)
+    if (modalType === 'muestra' && item.producto) {
+      try {
+        const parsed = JSON.parse(item.producto);
+        if (Array.isArray(parsed)) {
+          setMuestraProductos(parsed.map(p => typeof p === 'string' ? { nombre: p, cantidad: '1', lote: '' } : p));
+        } else {
+          setMuestraProductos([{ nombre: String(item.producto), cantidad: '1', lote: '' }]);
+        }
+      } catch {
+        setMuestraProductos([{ nombre: String(item.producto), cantidad: '1', lote: '' }]);
+      }
+      setMuestraProductoInput('');
+      setMuestraCantInput('');
+      setMuestraLoteInput('');
+    }
     setShowModal(modalType);
   };
 
   const openNew = (modalType) => {
-    // Pre-fill with last used values from localStorage
+    // Pre-fill con valores por defecto para que los selectores no queden en null si el usuario no los toca
     const prefill = {};
+    if (modalType === 'documento') { prefill.tipo = 'Invoice'; prefill.estado = 'Vigente'; }
+    if (modalType === 'visita') { prefill.tipo = 'Feria internacional'; prefill.estado = 'Planificada'; prefill.fecha = new Date().toISOString().substring(0, 10); }
+    if (modalType === 'contacto') { prefill.rol = 'Importador'; prefill.estado = 'Activo'; }
+    if (modalType === 'comunicacion') { prefill.tipo = 'Email'; prefill.fecha = new Date().toISOString().substring(0, 10); }
+    if (modalType === 'oportunidad') { prefill.marca = 'Don Yeyo'; prefill.etapa = 'Prospecto'; }
+    if (modalType === 'muestra') { prefill.resultado = 'Pendiente'; prefill.fecha = new Date().toISOString().substring(0, 10); }
+    if (modalType === 'cobranza') { prefill.marca = 'Don Yeyo'; prefill.estado = 'Pendiente'; }
+    if (modalType === 'tarea') { prefill.prioridad = 'media'; }
+    if (modalType === 'precio') { prefill.unidad = 'unidades'; prefill.peso = 1.000; prefill.fecha = new Date().toISOString().substring(0, 10); }
+
     const lastPais = lsGet('lastPaisId');
     const lastMarca = lsGet('lastMarca');
     if (['oportunidad', 'muestra', 'cobranza', 'documento', 'precio', 'tendencia', 'tarea'].includes(modalType) && lastPais) {
@@ -391,8 +523,33 @@ export default function App() {
     if (['oportunidad', 'cobranza'].includes(modalType) && lastMarca) {
       prefill.marca = lastMarca;
     }
+    if (modalType === 'muestra') {
+      setMuestraProductos([]);
+      setMuestraProductoInput('');
+      setMuestraCantInput('');
+      setMuestraLoteInput('');
+    }
     setFormValues(prefill);
     setShowModal(modalType);
+  };
+
+  // Helpers para multi-producto en muestras (con cantidad y lote)
+  const addMuestraProducto = () => {
+    const val = muestraProductoInput.trim();
+    if (!val) return;
+    const item = {
+      nombre: val,
+      cantidad: muestraCantInput.trim() || '1',
+      lote: muestraLoteInput.trim() || ''
+    };
+    setMuestraProductos(prev => [...prev, item]);
+    setMuestraProductoInput('');
+    setMuestraCantInput('');
+    setMuestraLoteInput('');
+  };
+
+  const removeMuestraProducto = (index) => {
+    setMuestraProductos(prev => prev.filter((_, i) => i !== index));
   };
 
   const toggleTaskStatus = async (task) => {
@@ -427,6 +584,43 @@ export default function App() {
       tipo: 'Visita', icono: <Calendar size={16} />, titulo: v.titulo, detalle: `${fmtDate(v.fecha)} · ${v.lugar || ''}`, dias: daysFrom(v.fecha), color: 'badge-blue'
     }))
   ].sort((a, b) => a.dias - b.dias), [documentos, visitas]);
+
+  // Alertas no visualizadas + Notificaciones Push PWA
+  const [lastSeenAlertsCount, setLastSeenAlertsCount] = useState(
+    parseInt(lsGet('lastSeenAlertsCount', '0')) || 0
+  );
+
+  const unviewedAlertsCount = useMemo(() => {
+    return Math.max(0, alertas.length - lastSeenAlertsCount);
+  }, [alertas.length, lastSeenAlertsCount]);
+
+  useEffect(() => {
+    if (activeTab === 'alertas') {
+      setLastSeenAlertsCount(alertas.length);
+      lsSet('lastSeenAlertsCount', String(alertas.length));
+    }
+  }, [activeTab, alertas.length]);
+
+  useEffect(() => {
+    if (unviewedAlertsCount > 0 && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification('TradeCRM — Alertas de Comercio Exterior', {
+          body: `Tenés ${unviewedAlertsCount} alerta(s) de vencimientos o visitas próximas.`,
+          icon: '/src/assets/logo-don-yeyo-png-sin-fondo.png'
+        });
+      } catch (err) { /* noop */ }
+    }
+  }, [unviewedAlertsCount]);
+
+  const handleHeaderBellClick = () => {
+    setActiveTab('alertas');
+    setLastSeenAlertsCount(alertas.length);
+    lsSet('lastSeenAlertsCount', String(alertas.length));
+    
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  };
 
   const menuItems = [
     { icon: <LayoutDashboard size={18} />, label: 'Dashboard', key: 'dashboard' },
@@ -548,6 +742,17 @@ export default function App() {
             <button className={`zoom-btn ${uiZoom === 'lg' ? 'active' : ''}`} onClick={() => setUiZoom('lg')} title="Texto grande" style={{fontSize: '0.95rem'}}>A</button>
           </div>
 
+          <button 
+            className={`header-alert-btn ${unviewedAlertsCount > 0 ? 'has-unread' : ''}`}
+            onClick={handleHeaderBellClick}
+            title={unviewedAlertsCount > 0 ? `${unviewedAlertsCount} alertas sin visualizar` : 'Ver alertas (sin pendientes)'}
+          >
+            <Bell size={18} />
+            {unviewedAlertsCount > 0 && (
+              <span className="header-alert-badge">{unviewedAlertsCount}</span>
+            )}
+          </button>
+
           <button className="mode-toggle" onClick={toggleTheme} title="Cambiar modo">
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
@@ -556,9 +761,9 @@ export default function App() {
             <span className="user-name desktop-only">{user.name}</span>
             <div className="avatar">{initials || <User size={18} />}</div>
             {showUserMenu && (
-              <div className="glass" style={{ position: 'absolute', top: '100%', right: 0, marginTop: '6px', minWidth: '160px', borderRadius: '10px', overflow: 'hidden', zIndex: 150, textAlign: 'left' }}>
-                <button onClick={() => addToast({ type: 'info', message: 'Función de cierre de sesión disponible con autenticación activa.' })} style={{ width: '100%', padding: '10px 14px', borderRadius: 0, justifyContent: 'flex-start', color: 'var(--error)', background: 'transparent', fontSize: '0.85rem', border: 'none', textAlign: 'left', cursor: 'pointer' }}>
-                  Cerrar sesión
+              <div className="glass" style={{ position: 'absolute', top: '100%', right: 0, marginTop: '6px', minWidth: '180px', borderRadius: '10px', overflow: 'hidden', zIndex: 150, textAlign: 'left' }}>
+                <button onClick={logout} style={{ width: '100%', padding: '10px 14px', borderRadius: 0, justifyContent: 'flex-start', color: 'var(--error)', background: 'transparent', fontSize: '0.85rem', border: 'none', textAlign: 'left', cursor: 'pointer' }}>
+                  Cerrar sesión ({user.email || user.name})
                 </button>
               </div>
             )}
@@ -612,7 +817,7 @@ export default function App() {
                 </select>
               </div>
               <div className="metrics-grid" style={{marginBottom: 16}}>
-                <div className="metric-card" style={{background: 'var(--primary-light)'}}><div className="metric-header" style={{color: 'var(--dy-blue)'}}>Unidades exportadas</div><div className="metric-value" style={{fontSize: '1.4rem'}}>{dashCobranzas.reduce((s, c) => s + (parseInt(c.unidades) || 0), 0).toLocaleString('es-AR')}</div><div className="metric-footer">total del período</div></div>
+                <div className="metric-card" style={{background: 'var(--primary-light)'}}><div className="metric-header" style={{color: 'var(--header-text)'}}>Unidades exportadas</div><div className="metric-value" style={{fontSize: '1.4rem'}}>{dashCobranzas.reduce((s, c) => s + (parseInt(c.unidades) || 0), 0).toLocaleString('es-AR')}</div><div className="metric-footer">total del período</div></div>
                 <div className="metric-card" style={{background: 'var(--success-light)'}}><div className="metric-header" style={{color: 'var(--success)'}}>Valor exportado (USD)</div><div className="metric-value" style={{fontSize: '1.4rem'}}>${dashCobranzas.reduce((s, c) => s + (parseFloat(c.monto) || 0), 0).toLocaleString('es-AR')}</div><div className="metric-footer">operaciones cerradas</div></div>
                 <div className="metric-card" style={{background: 'var(--danger-light)'}}><div className="metric-header" style={{color: 'var(--danger)'}}>Cobranza vencida</div><div className="metric-value" style={{fontSize: '1.4rem', color: 'var(--danger)'}}>${cobranzaVencida.toLocaleString('es-AR')}</div><div className="metric-footer">requiere seguimiento</div></div>
               </div>
@@ -662,7 +867,7 @@ export default function App() {
                   <div key={stage} className="funnel-column">
                     <div className="funnel-header">{stage}</div>
                     {oportunidades.filter(o => o.etapa === stage).length === 0 ? <div style={{fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center', padding: 8}}>—</div> :
-                      oportunidades.filter(o => o.etapa === stage).map(o => <div key={o.id} className="funnel-card"><strong>{o.nombre}</strong><div style={{color: 'var(--dy-blue)', fontWeight: 600, marginTop: 2, fontSize: '0.8rem'}}>${parseFloat(o.monto).toLocaleString()}</div></div>)
+                      oportunidades.filter(o => o.etapa === stage).map(o => <div key={o.id} className="funnel-card"><strong>{o.nombre}</strong><div style={{color: 'var(--primary)', fontWeight: 600, marginTop: 2, fontSize: '0.8rem'}}>${parseFloat(o.monto).toLocaleString()}</div></div>)
                     }
                   </div>
                 ))}
@@ -901,10 +1106,31 @@ export default function App() {
                 <button className="btn btn-primary btn-sm" onClick={() => openNew('muestra')}><Plus size={14} /> Registrar muestra</button>
               </div>
               {filteredMuestras.length === 0 ? <div className="empty-state"><div className="empty-state-icon"><Package size={28} /></div><div className="empty-state-text">Sin muestras registradas</div></div> :
-                filteredMuestras.map(m => (
+                filteredMuestras.map(m => {
+                  // Parsear productos: JSON array de objetos o strings (retrocompatible)
+                  let prods = [];
+                  try {
+                    const parsed = JSON.parse(m.producto);
+                    if (Array.isArray(parsed)) {
+                      prods = parsed.map(p => typeof p === 'string' ? { nombre: p } : p);
+                    } else { prods = [{ nombre: String(m.producto) }]; }
+                  } catch { prods = [{ nombre: String(m.producto) }]; }
+
+                  const mainLabel = prods.map(p => `${p.nombre}${p.cantidad ? ` (${p.cantidad} u.)` : ''}`).join(', ');
+
+                  return (
                   <div key={m.id} className="sample-row">
                     <div style={{flex: 1}}>
-                      <div style={{fontWeight: 500, fontSize: '0.85rem'}}>{m.producto}</div>
+                      <div style={{fontWeight: 600, fontSize: '0.85rem'}}>{mainLabel}</div>
+                      <div className="product-tags" style={{marginTop: 4}}>
+                        {prods.map((p, i) => (
+                          <span key={i} className="product-tag">
+                            <span className="product-tag-name">{p.nombre}</span>
+                            {p.cantidad && <span style={{opacity: 0.85, fontSize: '0.7rem'}}>· {p.cantidad} u.</span>}
+                            {p.lote && <span style={{opacity: 0.85, fontSize: '0.7rem'}}>· Lote: {p.lote}</span>}
+                          </span>
+                        ))}
+                      </div>
                       <div style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{m.destinatario || ''} · {m.pais_nombre || ''} · {fmtDate(m.fecha)}</div>
                       {m.notas && <div style={{fontSize: '0.75rem', marginTop: 2}} dangerouslySetInnerHTML={{__html: m.notas}} />}
                     </div>
@@ -913,11 +1139,12 @@ export default function App() {
                       {m.costo > 0 && <span style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>${parseFloat(m.costo).toLocaleString()}</span>}
                       <div style={{display: 'flex', gap: 4}}>
                         <button className="icon-btn" onClick={() => openEdit('muestra', m)}><Edit size={14} /></button>
-                        <button className="icon-btn" onClick={() => requestDelete('muestras', m.id, m.producto)}><Trash2 size={14} /></button>
+                        <button className="icon-btn" onClick={() => requestDelete('muestras', m.id, mainLabel)}><Trash2 size={14} /></button>
                       </div>
                     </div>
                   </div>
-                ))
+                  );
+                })
               }
             </>}
 
@@ -1050,9 +1277,31 @@ export default function App() {
                           <td><strong>{p.competidor}</strong>{p.producto && <div style={{fontSize: '0.7rem', color: 'var(--text-muted)'}}>{p.producto}</div>}</td>
                           <td>{p.pais_nombre || '—'}</td>
                           <td><span className="badge badge-navy">{p.categoria || '—'}</span></td>
-                          <td style={{fontWeight: 500}}>{p.precio || '—'}</td>
+                          <td style={{fontWeight: 500}}>{p.precio > 0 ? `$${parseFloat(p.precio).toLocaleString()}` : '—'}</td>
                           <td>{p.unidad || '—'}</td>
-                          <td style={{color: 'var(--dy-blue)', fontWeight: 500}}>{p.peso > 0 && p.precio > 0 ? (parseFloat(p.precio) / parseFloat(p.peso)).toFixed(2) + ' /kg' : '—'}</td>
+                          <td style={{color: 'var(--text)', fontWeight: 500}}>{p.peso > 0 && p.precio > 0 ? (parseFloat(p.precio) / parseFloat(p.peso)).toFixed(2) + ' /kg' : '—'}</td>
+                          <td style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>
+                            {p.imagen_url ? (
+                              (() => {
+                                let imgs = [];
+                                try {
+                                  const parsed = JSON.parse(p.imagen_url);
+                                  imgs = Array.isArray(parsed) ? parsed : [{ dataUrl: p.imagen_url }];
+                                } catch {
+                                  imgs = [{ dataUrl: p.imagen_url }];
+                                }
+                                return (
+                                  <div style={{display: 'flex', gap: 4, flexWrap: 'wrap'}}>
+                                    {imgs.map((imgObj, i) => (
+                                      <button key={i} type="button" className="btn btn-xs btn-outline" onClick={() => setPreviewImage(imgObj.dataUrl || imgObj)} style={{display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px'}}>
+                                        <Camera size={11} /> Foto {imgs.length > 1 ? i + 1 : ''}
+                                      </button>
+                                    ))}
+                                  </div>
+                                );
+                              })()
+                            ) : '—'}
+                          </td>
                           <td style={{color: 'var(--text-muted)'}}>{p.fuente || '—'}</td>
                           <td style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{fmtDate(p.fecha)}</td>
                           <td><button className="icon-btn" onClick={() => openEdit('precio', p)}><Edit size={14} /></button> <button className="icon-btn" onClick={() => requestDelete('precios', p.id, p.competidor)}><Trash2 size={14} /></button></td>
@@ -1139,7 +1388,7 @@ export default function App() {
                       <div style={{fontWeight: 500}}>{c.producto}</div>
                       <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 2}}>
                         <span style={{color: 'var(--text-muted)'}}>{c.pais_nombre || ''} · {fmtDate(c.fecha)}</span>
-                        <span style={{fontWeight: 500, color: 'var(--dy-blue)'}}>${parseFloat(c.landed).toLocaleString()} landed</span>
+                        <span style={{fontWeight: 500, color: 'var(--text)'}}>${parseFloat(c.landed).toLocaleString()} landed</span>
                       </div>
                       <button className="icon-btn" style={{marginTop: 4}} onClick={() => requestDelete('calculos', c.id, c.producto)}><Trash2 size={14} /></button>
                     </div>
@@ -1235,7 +1484,7 @@ export default function App() {
                       <div className="form-group"><label className="form-label">Rol</label><select className="form-input" value={fv('rol') || 'Importador'} onChange={e => setFv('rol', e.target.value)}><option>Importador</option><option>Distribuidor</option><option>Broker</option><option>Retailer</option><option>Otro</option></select></div>
                     </div>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">País</label><input type="text" className="form-input" value={fv('pais_nombre')} onChange={e => setFv('pais_nombre', e.target.value)} placeholder="País" /></div>
+                      <div className="form-group"><label className="form-label">País</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => { const p = paises.find(x => String(x.id) === String(e.target.value)); setFv('pais_id', e.target.value || null); setFv('pais_nombre', p ? p.nombre : ''); }}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
                       <div className="form-group"><label className="form-label">Ciudad</label><input type="text" className="form-input" maxLength={maxLen('contacto','ciudad')} value={fv('ciudad')} onChange={e => setFv('ciudad', e.target.value)} /></div>
                     </div>
                     <div className="form-grid-2">
@@ -1260,7 +1509,7 @@ export default function App() {
                     <div className="form-group"><label className="form-label">Contactos participantes</label><input type="text" className="form-input" maxLength={maxLen('visita','contactos')} value={fv('contactos')} onChange={e => setFv('contactos', e.target.value)} placeholder="Nombres o empresas" /></div>
                     {(fv('tipo') === 'Ronda de negocios') && (
                       <div style={{background: 'var(--primary-light)', borderRadius: 'var(--radius-sm)', padding: '12px 14px', marginBottom: 14}}>
-                        <div style={{fontSize: '0.8rem', fontWeight: 600, color: 'var(--dy-blue)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6}}><Handshake size={14} /> Datos de ronda de negocios</div>
+                        <div style={{fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6}}><Handshake size={14} /> Datos de ronda de negocios</div>
                         <div className="form-grid-2">
                           <div className="form-group"><label className="form-label">Organismo organizador</label><input className="form-input" maxLength={150} value={fv('ronda_org')} onChange={e => setFv('ronda_org', e.target.value)} placeholder="ProArgentina, Cancillería" /></div>
                           <div className="form-group"><label className="form-label">Nro. de reuniones</label><input type="number" min="0" className="form-input" value={fv('ronda_reuniones')} onChange={e => setFv('ronda_reuniones', e.target.value)} /></div>
@@ -1341,7 +1590,41 @@ export default function App() {
 
                   {/* --- MUESTRA --- */}
                   {showModal === 'muestra' && <>
-                    <div className="form-group"><label className="form-label">Producto / descripción *</label><input type="text" className="form-input" required maxLength={maxLen('muestra','producto')} value={fv('producto')} onChange={e => setFv('producto', e.target.value)} placeholder="Ej: Tapas Don Yeyo x 12u" /></div>
+                    <div className="form-group">
+                      <label className="form-label">Productos de la muestra *</label>
+                      {muestraProductos.length > 0 && (
+                        <div className="product-tags" style={{marginBottom: 10}}>
+                          {muestraProductos.map((p, i) => (
+                            <span key={i} className="product-tag">
+                              <span className="product-tag-name">
+                                <strong>{typeof p === 'object' ? p.nombre : p}</strong>
+                                {p.cantidad && ` (${p.cantidad} u.)`}
+                                {p.lote && ` · Lote: ${p.lote}`}
+                              </span>
+                              <button type="button" className="product-tag-remove" onClick={() => removeMuestraProducto(i)}><X size={12} /></button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="product-add-row" style={{display: 'flex', flexDirection: 'column', gap: 8}}>
+                        <ProductAutocomplete
+                          value={muestraProductoInput}
+                          onChange={setMuestraProductoInput}
+                          onSelect={(prod) => {
+                            const display = `${prod.codigo} — ${prod.nombre}`;
+                            setMuestraProductoInput(display);
+                          }}
+                          productos={productosCatalogo}
+                          placeholder="Escribí código o nombre del producto..."
+                        />
+                        <div className="form-grid-2" style={{margin: 0}}>
+                          <input type="text" className="form-input" placeholder="Cantidad (ej: 10 u. / 5 cajas)" value={muestraCantInput} onChange={e => setMuestraCantInput(e.target.value)} />
+                          <input type="text" className="form-input" placeholder="Lote (ej: L-2026-04)" value={muestraLoteInput} onChange={e => setMuestraLoteInput(e.target.value)} />
+                        </div>
+                        <button type="button" className="btn btn-primary btn-sm" onClick={addMuestraProducto} style={{alignSelf: 'flex-start'}}><Plus size={14} /> Agregar este producto</button>
+                      </div>
+                      <div style={{fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4}}>Escribí 3 o más caracteres para buscar en el catálogo Finnegans o tipeá libremente.</div>
+                    </div>
                     <div className="form-grid-2">
                       <div className="form-group"><label className="form-label">Destinatario</label><input className="form-input" maxLength={maxLen('muestra','destinatario')} value={fv('destinatario')} onChange={e => setFv('destinatario', e.target.value)} /></div>
                       <div className="form-group"><label className="form-label">País</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
@@ -1362,7 +1645,7 @@ export default function App() {
                     </div>
                     <div className="form-grid-2">
                       <div className="form-group"><label className="form-label">Contacto</label><select className="form-input" value={fv('contacto_id') || ''} onChange={e => setFv('contacto_id', e.target.value || null)}><option value="">Selecciona...</option>{contactos.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido || ''}</option>)}</select></div>
-                      <div className="form-group"><label className="form-label">País</label><input className="form-input" maxLength={100} value={fv('pais')} onChange={e => setFv('pais', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">País</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
                     </div>
                     <div className="form-group"><label className="form-label">Asunto / tema *</label><input type="text" className="form-input" required maxLength={maxLen('comunicacion','asunto')} value={fv('asunto')} onChange={e => setFv('asunto', e.target.value)} placeholder="¿De qué se trató?" /></div>
                     <div className="form-group"><label className="form-label">Resumen</label><RichTextEditor value={fv('resumen')} onChange={v => setFv('resumen', v)} placeholder="Qué se dijo, compromisos..." /></div>
@@ -1422,7 +1705,11 @@ export default function App() {
                     </div>
                     <div className="form-grid-2">
                       <div className="form-group"><label className="form-label">Peso neto envase (kg)</label><input type="number" step="0.001" min="0" className="form-input" value={fv('peso')} onChange={e => setFv('peso', e.target.value)} placeholder="0.500" /></div>
-                      <div className="form-group"><label className="form-label">Precio / kg (calculado)</label><input className="form-input" readOnly value={fv('precio') && fv('peso') ? (parseFloat(fv('precio')) / parseFloat(fv('peso'))).toFixed(2) + ' / kg' : ''} style={{background: 'var(--background)', color: 'var(--dy-blue)', fontWeight: 500}} /></div>
+                      <div className="form-group"><label className="form-label">Precio / kg (calculado)</label><input className="form-input" readOnly value={fv('precio') && fv('peso') ? (parseFloat(fv('precio')) / parseFloat(fv('peso'))).toFixed(2) + ' / kg' : ''} style={{background: 'var(--background)', color: 'var(--text)', fontWeight: 500}} /></div>
+                      <div className="form-group" style={{gridColumn: '1 / -1'}}>
+                        <label className="form-label">Fotos del producto o góndola (arrastrá o tocá para subir varias)</label>
+                        <ProImageUploader value={fv('imagen_url')} onChange={v => setFv('imagen_url', v)} maxFiles={5} />
+                      </div>
                     </div>
                     <div className="form-grid-2">
                       <div className="form-group"><label className="form-label">Fuente</label><input className="form-input" maxLength={150} value={fv('fuente')} onChange={e => setFv('fuente', e.target.value)} placeholder="visita feria, web..." /></div>
@@ -1453,6 +1740,17 @@ export default function App() {
           </div>
         )}
       </main>
+      {/* Modal Lightbox para foto de competidores */}
+      {previewImage && (
+        <div className="modal-backdrop" onClick={() => setPreviewImage(null)} style={{zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)'}}>
+          <div style={{position: 'relative', maxWidth: '90vw', maxHeight: '90vh'}} onClick={e => e.stopPropagation()}>
+            <img src={previewImage} alt="Foto competidor" style={{maxWidth: '100%', maxHeight: '85vh', borderRadius: 12, boxShadow: '0 10px 30px rgba(0,0,0,0.5)'}} />
+            <button type="button" className="icon-btn" onClick={() => setPreviewImage(null)} style={{position: 'absolute', top: -12, right: -12, background: 'var(--surface)', borderRadius: '50%', padding: 6, boxShadow: '0 4px 10px rgba(0,0,0,0.3)'}}>
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

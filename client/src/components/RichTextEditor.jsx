@@ -1,14 +1,10 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import { Bold, Italic, Underline, Palette } from 'lucide-react';
 
 /**
  * Editor de texto enriquecido básico (WYSIWYG).
  * Basado en contentEditable + execCommand.
- * Props:
- *   value: string (HTML)
- *   onChange: (html: string) => void
- *   placeholder: string
- *   minHeight: number (default: 120 = ~5 líneas)
+ * Sincroniza el HTML de forma no-controlada en render para evitar el bug de cursor invertido.
  */
 
 const PRESET_COLORS = ['#0d2c5c', '#e40521', '#10b981', '#f59e0b', '#6366f1'];
@@ -16,6 +12,13 @@ const PRESET_COLORS = ['#0d2c5c', '#e40521', '#10b981', '#f59e0b', '#6366f1'];
 export default function RichTextEditor({ value, onChange, placeholder = 'Escribí aquí...', minHeight = 120 }) {
   const editorRef = useRef(null);
   const colorPickerRef = useRef(null);
+
+  // Sincronizar DOM solo cuando value cambia externamente (ej: cambio de modal o reset de form)
+  useEffect(() => {
+    if (editorRef.current && (value || '') !== editorRef.current.innerHTML) {
+      editorRef.current.innerHTML = value || '';
+    }
+  }, [value]);
 
   const exec = useCallback((command, val = null) => {
     document.execCommand(command, false, val);
@@ -41,7 +44,7 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Escrib�
     document.execCommand('insertText', false, text);
   };
 
-  const isEmpty = !value || value === '<br>' || value === '<div><br></div>';
+  const isEmpty = !value || value === '<br>' || value === '<div><br></div>' || value === '';
 
   return (
     <div className="rich-editor">
@@ -74,9 +77,9 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Escrib�
         onInput={handleInput}
         onPaste={handlePaste}
         style={{ minHeight }}
-        dangerouslySetInnerHTML={{ __html: value || '' }}
         suppressContentEditableWarning
       />
     </div>
   );
 }
+
