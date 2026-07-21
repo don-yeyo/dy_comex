@@ -15,7 +15,28 @@
     <link rel="apple-touch-icon" href="/src/assets/logo-don-yeyo-png-sin-fondo.png">
     <meta name="description" content="ComEx CRM — Sistema de gestión de comercio exterior para Don Yeyo S.A. Pipeline, contactos, documentos, cobranzas e inteligencia comercial.">
     <title>ComEx CRM — Comercio Exterior Don Yeyo</title>
+    <script>
+      // Capturar 404 en scripts estáticos cuando hay un nuevo despliegue y auto-recargar
+      window.addEventListener('error', function(e) {
+        if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+          console.warn('[App] Recurso no encontrado (404), limpiando caché...', e.target.src || e.target.href);
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              for (var i = 0; i < regs.length; i++) regs[i].unregister();
+              if (!sessionStorage.getItem('asset_reload')) {
+                sessionStorage.setItem('asset_reload', 'true');
+                window.location.reload(true);
+              }
+            });
+          } else if (!sessionStorage.getItem('asset_reload')) {
+            sessionStorage.setItem('asset_reload', 'true');
+            window.location.reload(true);
+          }
+        }
+      }, true);
+    </script>
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>

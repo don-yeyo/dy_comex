@@ -1,21 +1,13 @@
-const CACHE_NAME = 'comexcrm-v1';
-const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json'
-];
+const CACHE_NAME = 'comexcrm-v2';
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(keys.map((k) => caches.delete(k)))
     )
   );
   self.clients.claim();
@@ -24,6 +16,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || e.request.url.includes('/api/')) return;
   
+  // Para scripts y estilos dentro de /assets/, ir siempre a la red primero
   if (e.request.url.includes('/assets/')) {
     e.respondWith(
       fetch(e.request).catch(() => caches.match(e.request))
@@ -31,10 +24,12 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
+  // Network-First para la navegación principal
   e.respondWith(
-    caches.match(e.request).then((cached) => cached || fetch(e.request))
+    fetch(e.request).catch(() => caches.match(e.request))
   );
 });
+
 
 
 self.addEventListener('push', (e) => {
