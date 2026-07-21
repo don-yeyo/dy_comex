@@ -128,6 +128,218 @@ docker-compose up --build
 
 ---
 
+## 📐 Diagrama Entidad-Relación (DER)
+
+El modelo de datos está compuesto por 14 tablas con relaciones de clave foránea centradas en la tabla `paises` y `contactos`.
+
+```mermaid
+erDiagram
+    usuarios {
+        INT id PK
+        VARCHAR email UK
+        VARCHAR nombre
+        ENUM rol "admin | editor | viewer"
+        TINYINT activo
+        TIMESTAMP created_at
+    }
+
+    paises {
+        INT id PK
+        VARCHAR nombre UK
+        VARCHAR bandera
+        DECIMAL arancel
+        VARCHAR incoterm
+        VARCHAR ncm
+        VARCHAR moneda
+        DECIMAL tipocambio
+        DATE tc_fecha
+        VARCHAR sanitario
+        TEXT sanitario_req
+        TEXT etiquetado
+        TEXT notas
+        TIMESTAMP created_at
+    }
+
+    contactos {
+        INT id PK
+        VARCHAR nombre
+        VARCHAR apellido
+        VARCHAR empresa
+        VARCHAR rol
+        INT pais_id FK
+        VARCHAR pais_nombre
+        VARCHAR ciudad
+        VARCHAR email
+        VARCHAR telefono
+        ENUM estado
+        TEXT notas
+        VARCHAR finnegans_id
+        TIMESTAMP created_at
+    }
+
+    visitas {
+        INT id PK
+        VARCHAR titulo
+        VARCHAR tipo
+        ENUM estado
+        DATE fecha
+        VARCHAR lugar
+        TEXT contactos
+        TEXT notas
+        TEXT proximo
+        VARCHAR ronda_org
+        INT ronda_reuniones
+        INT ronda_importadores
+        DECIMAL ronda_pedidos
+        TEXT ronda_resultado
+        TIMESTAMP created_at
+    }
+
+    oportunidades {
+        INT id PK
+        VARCHAR nombre
+        INT pais_id FK
+        INT contacto_id FK
+        VARCHAR marca
+        VARCHAR categoria
+        DECIMAL monto
+        INT prob
+        ENUM etapa
+        DATE cierre
+        TEXT notas
+        TIMESTAMP created_at
+    }
+
+    muestras {
+        INT id PK
+        VARCHAR producto
+        VARCHAR destinatario
+        INT pais_id FK
+        DATE fecha
+        ENUM resultado
+        DECIMAL costo
+        TEXT notas
+        TIMESTAMP created_at
+    }
+
+    comunicaciones {
+        INT id PK
+        ENUM tipo
+        DATE fecha
+        INT contacto_id FK
+        VARCHAR asunto
+        TEXT resumen
+        TEXT proximo
+        TIMESTAMP created_at
+    }
+
+    documentos {
+        INT id PK
+        VARCHAR nombre
+        VARCHAR numero
+        VARCHAR tipo
+        INT pais_id FK
+        DATE vencimiento
+        ENUM estado
+        TEXT notas
+        TIMESTAMP created_at
+    }
+
+    precios_competidores {
+        INT id PK
+        VARCHAR competidor
+        VARCHAR producto
+        INT pais_id FK
+        VARCHAR categoria
+        DECIMAL precio
+        VARCHAR unidad
+        DECIMAL peso
+        VARCHAR fuente
+        DATE fecha
+        TEXT notas
+        TIMESTAMP created_at
+    }
+
+    tendencias {
+        INT id PK
+        VARCHAR titulo
+        INT pais_id FK
+        VARCHAR categoria
+        TEXT descripcion
+        VARCHAR fuente
+        VARCHAR tags
+        TIMESTAMP created_at
+    }
+
+    calculos_exportacion {
+        INT id PK
+        VARCHAR producto
+        INT pais_id FK
+        DECIMAL fob
+        INT qty
+        DECIMAL flete
+        DECIMAL seguro
+        DECIMAL arancel
+        DECIMAL otros
+        DECIMAL landed
+        DATE fecha
+        TIMESTAMP created_at
+    }
+
+    cobranzas {
+        INT id PK
+        VARCHAR descripcion
+        INT cliente_id FK
+        INT pais_id FK
+        DECIMAL monto
+        DECIMAL cobrado_monto
+        INT unidades
+        VARCHAR marca
+        DATE embarque
+        DATE vencimiento
+        ENUM estado
+        VARCHAR condicion
+        TEXT notas
+        TIMESTAMP created_at
+    }
+
+    tareas {
+        INT id PK
+        VARCHAR titulo
+        DATE fecha
+        ENUM prioridad
+        INT pais_id FK
+        VARCHAR asignado
+        TEXT notas
+        ENUM status
+        TIMESTAMP created_at
+    }
+
+    paises ||--o{ contactos : "pais_id"
+    paises ||--o{ oportunidades : "pais_id"
+    paises ||--o{ muestras : "pais_id"
+    paises ||--o{ documentos : "pais_id"
+    paises ||--o{ precios_competidores : "pais_id"
+    paises ||--o{ tendencias : "pais_id"
+    paises ||--o{ calculos_exportacion : "pais_id"
+    paises ||--o{ cobranzas : "pais_id"
+    paises ||--o{ tareas : "pais_id"
+    contactos ||--o{ oportunidades : "contacto_id"
+    contactos ||--o{ comunicaciones : "contacto_id"
+    contactos ||--o{ cobranzas : "cliente_id"
+```
+
+### Relaciones principales
+
+| Tabla origen | Tabla destino | FK | Tipo |
+|---|---|---|---|
+| `paises` | `contactos`, `oportunidades`, `muestras`, `documentos`, `precios_competidores`, `tendencias`, `calculos_exportacion`, `cobranzas`, `tareas` | `pais_id` | 1:N |
+| `contactos` | `oportunidades` | `contacto_id` | 1:N |
+| `contactos` | `comunicaciones` | `contacto_id` | 1:N |
+| `contactos` | `cobranzas` | `cliente_id` | 1:N |
+
+---
+
 ## 🔎 Zoom de interfaz configurable
 
 La aplicación incluye un selector de tamaño de texto y controles con 3 niveles:
@@ -139,3 +351,14 @@ La aplicación incluye un selector de tamaño de texto y controles con 3 niveles
 | **A** (grande) | Texto e inputs más grandes, ideal para mejor legibilidad. |
 
 El selector se encuentra en la barra superior (header) junto al botón de modo oscuro/claro. La configuración se guarda automáticamente en el `localStorage` del navegador y persiste entre sesiones.
+
+---
+
+## 📖 Manual de usuario
+
+Para una guía completa de cada pantalla del sistema, consultá el **[Manual de Usuario](docs/MANUAL_USUARIO.md)**.
+
+El manual incluye:
+- Descripción de cada módulo y sus funciones.
+- Campos de formularios con reglas de validación.
+- Consejos de uso para aprovechar al máximo el sistema.
