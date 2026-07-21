@@ -56,6 +56,8 @@ Para que el login corporativo funcione con cuentas `@donyeyo.com.ar`, se debe re
   - `VITE_AZURE_AD_CLIENT_ID`: ID de aplicación de Azure AD.
   - `VITE_AZURE_AD_TENANT_ID`: ID de tenant de Azure AD.
   - `VITE_SHOW_DETAILED_ERRORS`: (`true` / `false`) permite mostrar el detalle exacto de las respuestas de error del servidor/MySQL en las notificaciones Toasts.
+  - `VITE_DB_CONNECTION_CHECK_INTERVAL`: (número en segundos, por defecto `90`) frecuencia del chequeo periódico de estado de conexión con la base de datos MySQL.
+
 
 ---
 

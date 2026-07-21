@@ -657,3 +657,20 @@ exports.getSystemVersion = (req, res) => {
   res.json({ version: '1.0.0', status: 'online' });
 };
 
+exports.getDbStatus = async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    await connection.query("SELECT 1");
+    connection.release();
+    return res.json({ status: 'ok', database: 'connected' });
+  } catch (error) {
+    console.error('[Healthcheck] Database connection failed:', error.message);
+    return res.status(500).json({
+      status: 'error',
+      database: 'disconnected',
+      message: error.message
+    });
+  }
+};
+
+

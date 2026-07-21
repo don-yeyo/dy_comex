@@ -17,6 +17,7 @@ import RichTextEditor from './components/RichTextEditor';
 import ProductAutocomplete from './components/ProductAutocomplete';
 import ProImageUploader from './components/ProImageUploader';
 import LoginScreen from './components/LoginScreen';
+import DbConnectionGuard from './components/DbConnectionGuard';
 import { useAuth } from './config/AuthContext';
 import './App.css';
 
@@ -29,8 +30,20 @@ const APP_CONFIG = {
   defaultUserEmail: import.meta.env.VITE_DEFAULT_USER_EMAIL || 'usuario@empresa.com'
 };
 
-// Configurar base URL para Axios
+// Configurar base URL e Interceptor de Axios para capturar fallos globales de conexión
 axios.defaults.baseURL = '/api';
+
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    const errorMsg = error.response?.data?.error || error.message || '';
+    window.dispatchEvent(new CustomEvent('api-request-failed', {
+      detail: { status, message: errorMsg }
+    }));
+    return Promise.reject(error);
+  }
+);
 
 // ========== VALIDATION RULES ==========
 const VALIDATION_RULES = {
@@ -338,18 +351,21 @@ export default function App() {
         axios.get('/tareas')
       ]);
 
-      setPaises(paisesRes.data);
-      setContactos(contactosRes.data);
-      setVisitas(visitasRes.data);
-      setOportunidades(oportunidadesRes.data);
-      setMuestras(muestrasRes.data);
-      setComunicaciones(comunicacionesRes.data);
-      setDocumentos(documentosRes.data);
-      setPrecios(preciosRes.data);
-      setTendencias(tendenciasRes.data);
-      setCalculos(calculosRes.data);
-      setCobranzas(cobranzasRes.data);
-      setTareas(tareasRes.data);
+      const ensureArray = (val) => Array.isArray(val) ? val : [];
+
+      setPaises(ensureArray(paisesRes.data));
+      setContactos(ensureArray(contactosRes.data));
+      setVisitas(ensureArray(visitasRes.data));
+      setOportunidades(ensureArray(oportunidadesRes.data));
+      setMuestras(ensureArray(muestrasRes.data));
+      setComunicaciones(ensureArray(comunicacionesRes.data));
+      setDocumentos(ensureArray(documentosRes.data));
+      setPrecios(ensureArray(preciosRes.data));
+      setTendencias(ensureArray(tendenciasRes.data));
+      setCalculos(ensureArray(calculosRes.data));
+      setCobranzas(ensureArray(cobranzasRes.data));
+      setTareas(ensureArray(tareasRes.data));
+
 
       // Cargar catálogo de productos Finnegans (con caché diaria en backend)
       try {
@@ -558,24 +574,26 @@ export default function App() {
   };
 
   // ========== MÉTRICAS ==========
-  const cobradoAnual = cobranzas.filter(c => c.estado === 'Cobrado').reduce((sum, c) => sum + parseFloat(c.monto || 0), 0);
-  const cobradoParcial = cobranzas.filter(c => c.estado === 'Cobrado parcial').reduce((sum, c) => sum + parseFloat(c.cobrado_monto || 0), 0);
-  const cobranzaTotalCobrada = cobradoAnual + cobradoParcial;
-  const cobranzaPendiente = cobranzas.filter(c => c.estado === 'Pendiente' || c.estado === 'Cobrado parcial').reduce((sum, c) => sum + (parseFloat(c.monto || 0) - parseFloat(c.cobrado_monto || 0)), 0);
-  const cobranzaVencida = cobranzas.filter(c => c.estado === 'Vencido').reduce((sum, c) => sum + (parseFloat(c.monto || 0) - parseFloat(c.cobrado_monto || 0)), 0);
-  const pipeline = oportunidades.filter(o => o.etapa !== 'Cerrado' && o.etapa !== 'Perdido').reduce((s, o) => s + parseFloat(o.monto || 0), 0);
-  const tareasVencidas = tareas.filter(t => t.status !== 'hecha' && t.fecha && daysFrom(t.fecha) < 0);
-  const tareasPendientes = tareas.filter(t => t.status !== 'hecha');
+  const safeArr = (arr) => Array.isArray(arr) ? arr : [];
 
-  const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  const cobradoAnual = safeArr(cobranzas).filter(c => c.estado === 'Cobrado').reduce((sum, c) => sum + parseFloat(c.monto || 0), 0);
+  const cobradoParcial = safeArr(cobranzas).filter(c => c.estado === 'Cobrado parcial').reduce((sum, c) => sum + parseFloat(c.cobrado_monto || 0), 0);
+  const cobranzaTotalCobrada = cobradoAnual + cobradoParcial;
+  const cobranzaPendiente = safeArr(cobranzas).filter(c => c.estado === 'Pendiente' || c.estado === 'Cobrado parcial').reduce((sum, c) => sum + (parseFloat(c.monto || 0) - parseFloat(c.cobrado_monto || 0)), 0);
+  const cobranzaVencida = safeArr(cobranzas).filter(c => c.estado === 'Vencido').reduce((sum, c) => sum + (parseFloat(c.monto || 0) - parseFloat(c.cobrado_monto || 0)), 0);
+  const pipeline = safeArr(oportunidades).filter(o => o.etapa !== 'Cerrado' && o.etapa !== 'Perdido').reduce((s, o) => s + parseFloat(o.monto || 0), 0);
+  const tareasVencidas = safeArr(tareas).filter(t => t.status !== 'hecha' && t.fecha && daysFrom(t.fecha) < 0);
+  const tareasPendientes = safeArr(tareas).filter(t => t.status !== 'hecha');
+
+  const initials = (user?.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 
   // ========== ALERTAS ENGINE ==========
   const alertas = useMemo(() => [
-    ...documentos.filter(d => d.vencimiento && daysFrom(d.vencimiento) <= 30 && daysFrom(d.vencimiento) >= -5).map(d => ({
+    ...safeArr(documentos).filter(d => d.vencimiento && daysFrom(d.vencimiento) <= 30 && daysFrom(d.vencimiento) >= -5).map(d => ({
       tipo: 'Documento', icono: <FileText size={16} />, titulo: d.nombre, detalle: `Vence ${fmtDate(d.vencimiento)}`, dias: daysFrom(d.vencimiento),
       color: daysFrom(d.vencimiento) < 0 ? 'badge-red' : daysFrom(d.vencimiento) <= 7 ? 'badge-red' : 'badge-amber'
     })),
-    ...visitas.filter(v => v.estado === 'Planificada' && v.fecha && daysFrom(v.fecha) >= 0 && daysFrom(v.fecha) <= 14).map(v => ({
+    ...safeArr(visitas).filter(v => v.estado === 'Planificada' && v.fecha && daysFrom(v.fecha) >= 0 && daysFrom(v.fecha) <= 14).map(v => ({
       tipo: 'Visita', icono: <Calendar size={16} />, titulo: v.titulo, detalle: `${fmtDate(v.fecha)} · ${v.lugar || ''}`, dias: daysFrom(v.fecha), color: 'badge-blue'
     }))
   ].sort((a, b) => a.dias - b.dias), [documentos, visitas]);
@@ -632,9 +650,9 @@ export default function App() {
     { icon: <DollarSign size={18} />, label: 'Cobranzas', key: 'cobranzas' }
   ];
 
-  // ========== DATOS FILTRADOS ==========
+  // ========== SELECTORES / MEMOS ==========
   const filteredTareas = useMemo(() => {
-    let data = [...tareas];
+    let data = [...safeArr(tareas)];
     if (taskFilterStatus) data = data.filter(t => t.status === taskFilterStatus);
     if (taskFilterPrior) data = data.filter(t => t.prioridad === taskFilterPrior);
     data.sort((a, b) => { const pa = { alta: 0, media: 1, baja: 2 }; return (pa[a.prioridad] || 1) - (pa[b.prioridad] || 1); });
@@ -642,7 +660,7 @@ export default function App() {
   }, [tareas, taskFilterStatus, taskFilterPrior]);
 
   const filteredContactos = useMemo(() => {
-    let data = [...contactos];
+    let data = [...safeArr(contactos)];
     if (contactSearch) data = data.filter(c => `${c.nombre} ${c.apellido || ''} ${c.empresa || ''}`.toLowerCase().includes(contactSearch.toLowerCase()));
     if (contactFilterPais) data = data.filter(c => c.pais_nombre === contactFilterPais);
     if (contactFilterRol) data = data.filter(c => c.rol === contactFilterRol);
@@ -650,7 +668,7 @@ export default function App() {
   }, [contactos, contactSearch, contactFilterPais, contactFilterRol]);
 
   const filteredVisitas = useMemo(() => {
-    let data = [...visitas];
+    let data = [...safeArr(visitas)];
     if (visitaFilterTipo) data = data.filter(v => v.tipo === visitaFilterTipo);
     if (visitaFilterEstado) data = data.filter(v => v.estado === visitaFilterEstado);
     data.sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
@@ -658,34 +676,34 @@ export default function App() {
   }, [visitas, visitaFilterTipo, visitaFilterEstado]);
 
   const filteredOportunidades = useMemo(() => {
-    let data = [...oportunidades];
+    let data = [...safeArr(oportunidades)];
     if (opFilterEtapa) data = data.filter(o => o.etapa === opFilterEtapa);
     if (opFilterMarca) data = data.filter(o => o.marca === opFilterMarca);
     return data;
   }, [oportunidades, opFilterEtapa, opFilterMarca]);
 
   const filteredMuestras = useMemo(() => {
-    let data = [...muestras];
+    let data = [...safeArr(muestras)];
     if (muestraFilterRes) data = data.filter(m => m.resultado === muestraFilterRes);
     return data;
   }, [muestras, muestraFilterRes]);
 
   const filteredComunicaciones = useMemo(() => {
-    let data = [...comunicaciones];
+    let data = [...safeArr(comunicaciones)];
     if (comFilterTipo) data = data.filter(c => c.tipo === comFilterTipo);
     data.sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
     return data;
   }, [comunicaciones, comFilterTipo]);
 
   const filteredDocumentos = useMemo(() => {
-    let data = [...documentos];
+    let data = [...safeArr(documentos)];
     if (docFilterTipo) data = data.filter(d => d.tipo === docFilterTipo);
     if (docFilterEstado) data = data.filter(d => d.estado === docFilterEstado);
     return data;
   }, [documentos, docFilterTipo, docFilterEstado]);
 
   const filteredCobranzas = useMemo(() => {
-    let data = [...cobranzas];
+    let data = [...safeArr(cobranzas)];
     if (cobFilterEstado) data = data.filter(c => c.estado === cobFilterEstado);
     if (cobFilterPais) data = data.filter(c => c.pais_nombre === cobFilterPais);
     if (cobSearch) data = data.filter(c => `${c.descripcion || ''} ${c.cliente_nombre || ''}`.toLowerCase().includes(cobSearch.toLowerCase()));
@@ -693,16 +711,17 @@ export default function App() {
   }, [cobranzas, cobFilterEstado, cobFilterPais, cobSearch]);
 
   const dashCobranzas = useMemo(() => {
-    if (dashYearFilter === 'all') return cobranzas;
+    const list = safeArr(cobranzas);
+    if (dashYearFilter === 'all') return list;
     const curYear = new Date().getFullYear();
-    return cobranzas.filter(c => {
+    return list.filter(c => {
       const yr = c.embarque ? new Date(c.embarque).getFullYear() : null;
       return yr === curYear;
     });
   }, [cobranzas, dashYearFilter]);
 
-  const paisesUnicos = useMemo(() => [...new Set(contactos.map(c => c.pais_nombre).filter(Boolean))], [contactos]);
-  const paisesCobUnicos = useMemo(() => [...new Set(cobranzas.map(c => c.pais_nombre).filter(Boolean))], [cobranzas]);
+  const paisesUnicos = useMemo(() => [...new Set(safeArr(contactos).map(c => c.pais_nombre).filter(Boolean))], [contactos]);
+  const paisesCobUnicos = useMemo(() => [...new Set(safeArr(cobranzas).map(c => c.pais_nombre).filter(Boolean))], [cobranzas]);
 
   // ========== RENDER FORM HELPER ==========
   const fv = (key) => formValues[key] || '';
@@ -733,6 +752,9 @@ export default function App() {
 
       {/* CONFIRM MODAL */}
       <ConfirmModal open={confirmState.open} title={confirmState.title} message={confirmState.message} onConfirm={confirmState.onConfirm} onCancel={() => setConfirmState({ open: false })} />
+
+      {/* DB CONNECTION GUARD */}
+      <DbConnectionGuard />
 
       {/* HEADER */}
       <header className="header">

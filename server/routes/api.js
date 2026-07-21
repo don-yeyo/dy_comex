@@ -6,6 +6,8 @@ const auth = require('../middleware/auth');
 // Rutas públicas de sistema y validación de auth
 router.get('/system/validate-email', apiController.validateEmail);
 router.get('/system/version', apiController.getSystemVersion);
+router.get('/system/db-status', apiController.getDbStatus);
+
 
 // Aplicar middleware de autenticación de Microsoft a todas las rutas protegidas
 router.use(auth);

@@ -361,6 +361,8 @@ Los cálculos guardados aparecen en el panel derecho para referencia futura.
 5. **Usá el campo "Próximo paso"**: en visitas y comunicaciones, dejá registrado qué hay que hacer después para no perder seguimiento.
 6. **Aprovechá el pre-llenado**: el sistema recuerda el último país y marca que usaste para acelerar la carga.
 7. **Revisá el Dashboard periódicamente**: es el termómetro de tu operación.
+8. **Detección automática de desconexión de Base de Datos**: si la comunicación con la base de datos se interrumpe, el sistema despliega automáticamente un modal de advertencia indicando el estado del servicio y permite reintentar la conexión sin perder datos.
+
 
 ---
 
