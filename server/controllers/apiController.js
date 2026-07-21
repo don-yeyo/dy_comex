@@ -643,25 +643,38 @@ exports.validateEmail = (req, res) => {
   }
 
   const cleanInputEmail = email.trim().toLowerCase();
+  const inputParts = cleanInputEmail.split('@');
+  const inputHandle = inputParts[0] || '';
+  const inputDomain = inputParts[1] || '';
 
   // Limpiar comillas iniciales/finales y espacios de las variables de entorno
   const authorizedEmailsStr = (process.env.AUTHORIZED_EMAILS || '').replace(/^["']|["']$/g, '');
   const authorizedEmails = authorizedEmailsStr.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+  const authorizedHandles = authorizedEmails.map(e => e.split('@')[0]);
 
   const allowedDomain = (process.env.ALLOWED_EMAIL_DOMAIN || 'donyeyo.com.ar').replace(/^["']|["']$/g, '').trim().toLowerCase();
-  const inputDomain = cleanInputEmail.split('@')[1] || '';
 
   // Si no hay lista explícita ni dominio, permitir el ingreso
   if (authorizedEmails.length === 0 && !allowedDomain) {
     return res.json({ authorized: true, message: 'Sin restricciones configuradas' });
   }
 
-  // Autorizado si está en la lista explícita O si coincide con el dominio corporativo
-  const isAuthorized = (authorizedEmails.length > 0 && authorizedEmails.includes(cleanInputEmail)) ||
-                       (allowedDomain && inputDomain === allowedDomain);
+  // Coincidencias permitidas:
+  // 1. Email exacto en AUTHORIZED_EMAILS
+  // 2. Mismo usuario / handle (ej: gabrielt en donyeyo.onmicrosoft.com vs donyeyo.com.ar)
+  // 3. Dominio de email coincide con ALLOWED_EMAIL_DOMAIN o contiene 'donyeyo'
+  const isAuthorized = 
+    authorizedEmails.includes(cleanInputEmail) ||
+    authorizedHandles.includes(inputHandle) ||
+    (allowedDomain && (inputDomain === allowedDomain || inputDomain.endsWith('.' + allowedDomain) || inputDomain.includes('donyeyo')));
 
-  res.json({ authorized: isAuthorized, email: cleanInputEmail });
+  res.json({ 
+    authorized: isAuthorized, 
+    email: cleanInputEmail,
+    matchedBy: isAuthorized ? (authorizedEmails.includes(cleanInputEmail) ? 'exact' : (authorizedHandles.includes(inputHandle) ? 'handle' : 'domain')) : 'none'
+  });
 };
+
 
 
 exports.getSystemVersion = (req, res) => {

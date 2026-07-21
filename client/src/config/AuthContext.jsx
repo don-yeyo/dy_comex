@@ -36,12 +36,21 @@ export const AuthProvider = ({ children }) => {
 
       let pendingUser = null;
       if (isMsAuthenticated && accounts.length > 0) {
+        const primaryEmail = (
+          accounts[0].idTokenClaims?.email || 
+          accounts[0].idTokenClaims?.preferred_username || 
+          accounts[0].idTokenClaims?.upn || 
+          accounts[0].username || 
+          ""
+        ).trim().toLowerCase();
+
         pendingUser = {
-          name: accounts[0].name || accounts[0].username,
-          email: accounts[0].username,
+          name: accounts[0].name || accounts[0].idTokenClaims?.name || accounts[0].username,
+          email: primaryEmail,
           provider: 'microsoft'
         };
       }
+
 
       if (pendingUser) {
         if (validatedEmail === pendingUser.email) {
