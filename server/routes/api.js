@@ -68,11 +68,17 @@ router.post('/comunicaciones', apiController.createComunicacion);
 router.put('/comunicaciones/:id', apiController.updateComunicacion);
 router.delete('/comunicaciones/:id', apiController.deleteComunicacion);
 
-// Rutas de Documentos
+// Rutas de Documentos (legacy)
 router.get('/documentos', apiController.getDocumentos);
 router.post('/documentos', apiController.createDocumento);
 router.put('/documentos/:id', apiController.updateDocumento);
 router.delete('/documentos/:id', apiController.deleteDocumento);
+
+// Rutas de Operaciones
+router.get('/operaciones', apiController.getOperaciones);
+router.post('/operaciones', apiController.createOperacion);
+router.put('/operaciones/:id', apiController.updateOperacion);
+router.delete('/operaciones/:id', apiController.deleteOperacion);
 
 // Rutas de Precios Competidores
 router.get('/precios', apiController.getPrecios);

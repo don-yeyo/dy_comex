@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 /**
  * Toast notification system — reemplaza alert() nativo.
- * Uso: <ToastContainer toasts={toasts} removeToast={removeToast} />
- *      addToast({ type: 'success', message: '...' })
+ * Uso: const toast = useToast();
+ *      <ToastContainer toasts={toast.toasts} removeToast={toast.removeToast} />
+ *      toast.success('...') / toast.error('...')
  */
 
-// Hook para manejar toasts
 export function useToast() {
   const [toasts, setToasts] = useState([]);
 
@@ -20,7 +20,14 @@ export function useToast() {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  return { toasts, addToast, removeToast };
+  const success = useCallback((message, title) => addToast({ type: 'success', message, title }), [addToast]);
+  const error = useCallback((message, title) => addToast({ type: 'error', message, title }), [addToast]);
+  const warning = useCallback((message, title) => addToast({ type: 'warning', message, title }), [addToast]);
+  const info = useCallback((message, title) => addToast({ type: 'info', message, title }), [addToast]);
+
+  return useMemo(() => ({
+    toasts, addToast, removeToast, success, error, warning, info
+  }), [toasts, addToast, removeToast, success, error, warning, info]);
 }
 
 const TOAST_ICONS = {
@@ -58,8 +65,8 @@ function ToastItem({ toast, onRemove }) {
   );
 }
 
-export function ToastContainer({ toasts, removeToast }) {
-  if (toasts.length === 0) return null;
+export function ToastContainer({ toasts = [], removeToast = () => {} }) {
+  if (!toasts || !Array.isArray(toasts) || toasts.length === 0) return null;
   return (
     <div className="toast-container">
       {toasts.map(t => <ToastItem key={t.id} toast={t} onRemove={removeToast} />)}

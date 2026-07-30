@@ -40,3 +40,7 @@ client/.env
 
 # Cache de productos Finnegans (se regenera diariamente)
 server/cache/
+Comentarios y propuestas de mejora.pdf
+Pendientes Comex Revisar este DOD.txt
+docs/dump-dy_comex-202607221028.sql
+docs/MANUAL_USUARIO.pdf

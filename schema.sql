@@ -19,14 +19,13 @@ CREATE TABLE IF NOT EXISTS `paises` (
   `nombre` VARCHAR(80) UNIQUE NOT NULL,
   `bandera` VARCHAR(10) DEFAULT '🌐',
   `arancel` DECIMAL(5,2) DEFAULT 0.00,
-  `incoterm` VARCHAR(10) DEFAULT 'FOB',
-  `ncm` VARCHAR(20) DEFAULT NULL,
   `moneda` VARCHAR(10) DEFAULT 'USD',
   `tipocambio` DECIMAL(12,4) DEFAULT 1.0000,
   `tc_fecha` DATE DEFAULT NULL,
   `sanitario` VARCHAR(100) DEFAULT NULL,
-  `sanitario_req` TEXT DEFAULT NULL,
+  `sanitario_req` TEXT DEFAULT NULL, -- Certificados / documentación obligatoria
   `etiquetado` TEXT DEFAULT NULL,
+  `etiquetado_fotos` MEDIUMTEXT DEFAULT NULL, -- Fotos o imágenes adjuntas (Base64/JSON)
   `notas` TEXT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -43,7 +42,11 @@ CREATE TABLE IF NOT EXISTS `contactos` (
   `ciudad` VARCHAR(100) DEFAULT NULL,
   `email` VARCHAR(100) DEFAULT NULL,
   `telefono` VARCHAR(50) DEFAULT NULL,
-  `estado` VARCHAR(50) DEFAULT 'Activo',
+  `estado` VARCHAR(50) DEFAULT 'Activo', -- Activo, En proceso, Inactivo, Descartado
+  `etapa_comercial` VARCHAR(50) DEFAULT NULL, -- Primer contacto, Reunión exploratoria, Cotización, Negociación, Habilitación regulatoria
+  `proxima_accion` TEXT DEFAULT NULL,
+  `proxima_accion_fecha` DATE DEFAULT NULL,
+  `proxima_accion_hora` TIME DEFAULT NULL,
   `notas` TEXT DEFAULT NULL,
   `finnegans_id` VARCHAR(50) DEFAULT NULL, -- Relación con el ID del ERP Finnegans
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -57,17 +60,23 @@ CREATE TABLE IF NOT EXISTS `visitas` (
   `tipo` VARCHAR(50) NOT NULL, -- Feria internacional, Ronda de negocios, Reunión comercial, Visita a cliente, Videoconferencia
   `estado` ENUM('Planificada', 'Realizada', 'Cancelada') DEFAULT 'Planificada',
   `fecha` DATE NOT NULL,
+  `fecha_fin` DATE DEFAULT NULL, -- Para ferias o viajes multidía
+  `hora` TIME DEFAULT NULL,
+  `actividad_padre_id` INT DEFAULT NULL, -- Agrupar reuniones dentro de una actividad/evento
+  `contacto_id` INT DEFAULT NULL, -- Vinculación con cliente registrado
   `lugar` VARCHAR(150) DEFAULT NULL,
   `contactos` TEXT DEFAULT NULL, -- Nombres de contactos involucrados
   `notas` TEXT DEFAULT NULL,
   `proximo` TEXT DEFAULT NULL, -- Próxima acción definida
+  `excel_url` MEDIUMTEXT DEFAULT NULL, -- Adjunto Excel de clientes relevados
   -- Campos específicos de Ronda de Negocios
   `ronda_org` VARCHAR(100) DEFAULT NULL,
   `ronda_reuniones` INT DEFAULT 0,
-  `ronda_importadores` INT DEFAULT 0,
-  `ronda_pedidos` DECIMAL(15,2) DEFAULT 0.00,
+  `ronda_importadores` INT DEFAULT 0, -- Contactos calificados
   `ronda_resultado` TEXT DEFAULT NULL,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`contacto_id`) REFERENCES `contactos`(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`actividad_padre_id`) REFERENCES `visitas`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tabla de Oportunidades comerciales
@@ -76,12 +85,14 @@ CREATE TABLE IF NOT EXISTS `oportunidades` (
   `nombre` VARCHAR(150) NOT NULL,
   `pais_id` INT DEFAULT NULL,
   `contacto_id` INT DEFAULT NULL,
-  `marca` VARCHAR(50) DEFAULT 'Don Yeyo', -- Don Yeyo, DeViano
-  `categoria` VARCHAR(100) DEFAULT NULL,
-  `monto` DECIMAL(15,2) DEFAULT 0.00,
-  `prob` INT DEFAULT 0, -- Probabilidad de 0 a 100
-  `etapa` ENUM('Prospecto', 'Contactado', 'Propuesta', 'Negociación', 'Cerrado', 'Perdido') DEFAULT 'Prospecto',
+  `marca` VARCHAR(50) DEFAULT 'Don Yeyo', -- Don Yeyo, DeViano, Otro
+  `marca_otra` VARCHAR(100) DEFAULT NULL,
+  `categoria` VARCHAR(100) DEFAULT NULL, -- Incluye Nuevo desarrollo
+  `categoria_detalle` VARCHAR(150) DEFAULT NULL,
+  `monto` DECIMAL(15,2) DEFAULT 0.00, -- Reemplazado visualmente por Inversión necesaria
+  `etapa` VARCHAR(50) DEFAULT 'En análisis', -- En análisis, En proceso, Finalizado, Descartado
   `cierre` DATE DEFAULT NULL,
+  `responsable` VARCHAR(100) DEFAULT NULL,
   `notas` TEXT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`pais_id`) REFERENCES `paises`(`id`) ON DELETE SET NULL,
@@ -93,13 +104,15 @@ CREATE TABLE IF NOT EXISTS `muestras` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `producto` TEXT NOT NULL,
   `destinatario` VARCHAR(150) DEFAULT NULL,
+  `contacto_id` INT DEFAULT NULL, -- Vinculación con base de clientes
   `pais_id` INT DEFAULT NULL,
   `fecha` DATE NOT NULL,
   `resultado` ENUM('Pendiente', 'Positivo', 'En evaluación', 'Negativo') DEFAULT 'Pendiente',
   `costo` DECIMAL(12,2) DEFAULT 0.00,
   `notas` TEXT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (`pais_id`) REFERENCES `paises`(`id`) ON DELETE SET NULL
+  FOREIGN KEY (`pais_id`) REFERENCES `paises`(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`contacto_id`) REFERENCES `contactos`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tabla de Log de Comunicaciones
@@ -115,12 +128,31 @@ CREATE TABLE IF NOT EXISTS `comunicaciones` (
   FOREIGN KEY (`contacto_id`) REFERENCES `contactos`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Tabla de Documentos
+-- Tabla de Operaciones (Reemplaza a Documentos)
+CREATE TABLE IF NOT EXISTS `operaciones` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `numero_pedido` VARCHAR(50) NOT NULL,
+  `cliente_id` INT DEFAULT NULL,
+  `pais_id` INT DEFAULT NULL,
+  `estado` ENUM('Pedido recibido', 'En proceso', 'Despachado') DEFAULT 'Pedido recibido',
+  `fecha_entrega` DATE DEFAULT NULL,
+  `unidades` INT DEFAULT 0,
+  `valor_usd` DECIMAL(15,2) DEFAULT 0.00,
+  `kilogramos` DECIMAL(10,2) DEFAULT 0.00,
+  `incoterm` VARCHAR(20) DEFAULT 'FOB',
+  `documentos` MEDIUMTEXT DEFAULT NULL, -- JSON array con archivos adjuntos
+  `notas` TEXT DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`cliente_id`) REFERENCES `contactos`(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`pais_id`) REFERENCES `paises`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tabla legacy de Documentos (mantenida por compatibilidad)
 CREATE TABLE IF NOT EXISTS `documentos` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `nombre` VARCHAR(150) NOT NULL,
   `numero` VARCHAR(50) DEFAULT NULL,
-  `tipo` VARCHAR(50) NOT NULL, -- Invoice, Bill of Lading, Packing List, Certificado fitosanitario, Certificado de origen, Contrato, Otro
+  `tipo` VARCHAR(50) NOT NULL,
   `pais_id` INT DEFAULT NULL,
   `vencimiento` DATE DEFAULT NULL,
   `estado` ENUM('Vigente', 'Vencido', 'Por vencer') DEFAULT 'Vigente',
@@ -152,7 +184,7 @@ CREATE TABLE IF NOT EXISTS `tendencias` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `titulo` VARCHAR(150) NOT NULL,
   `pais_id` INT DEFAULT NULL,
-  `categoria` VARCHAR(50) DEFAULT NULL, -- Tendencia de consumo, Regulación / normativa, Competencia, Logística / costos, Oportunidad, Riesgo
+  `categoria` VARCHAR(50) DEFAULT NULL,
   `descripcion` TEXT DEFAULT NULL,
   `fuente` VARCHAR(150) DEFAULT NULL,
   `tags` VARCHAR(150) DEFAULT NULL,
@@ -191,6 +223,8 @@ CREATE TABLE IF NOT EXISTS `cobranzas` (
   `vencimiento` DATE DEFAULT NULL,
   `estado` ENUM('Cobrado', 'Cobrado parcial', 'Pendiente', 'Vencido') DEFAULT 'Pendiente',
   `condicion` VARCHAR(50) DEFAULT NULL,
+  `medio_pago` VARCHAR(50) DEFAULT NULL, -- Transferencia, Carta de crédito, etc.
+  `condicion_pago` VARCHAR(50) DEFAULT NULL, -- Anticipado, 50% anticipado / 50% contra BL, 15 días, 30 días, 60 días, Otro
   `notas` TEXT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`cliente_id`) REFERENCES `contactos`(`id`) ON DELETE SET NULL,
@@ -202,6 +236,7 @@ CREATE TABLE IF NOT EXISTS `tareas` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `titulo` VARCHAR(150) NOT NULL,
   `fecha` DATE DEFAULT NULL,
+  `hora` TIME DEFAULT NULL,
   `prioridad` ENUM('alta', 'media', 'baja') DEFAULT 'media',
   `pais_id` INT DEFAULT NULL,
   `asignado` VARCHAR(100) DEFAULT NULL,
@@ -212,9 +247,9 @@ CREATE TABLE IF NOT EXISTS `tareas` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Insertar Datos Semilla para Países
-INSERT INTO `paises` (`nombre`, `bandera`, `arancel`, `incoterm`, `ncm`, `moneda`, `tipocambio`, `sanitario`) VALUES
-('Brasil', '🇧🇷', 0.00, 'FOB', '1905.90.90', 'BRL', 5.4200, 'ANVISA'),
-('México', '🇲🇽', 10.00, 'CIF', '1905.90.99', 'MXN', 18.2000, 'COFEPRIS'),
-('Chile', '🇨🇱', 6.00, 'FOB', '1905.90.90', 'CLP', 930.0000, 'SAG'),
-('Paraguay', '🇵🇾', 0.00, 'FOB', '1905.90.90', 'PYG', 7500.0000, 'INAN'),
-('Uruguay', '🇺🇾', 0.00, 'FOB', '1905.90.90', 'UYU', 39.5000, 'MSP');
+INSERT INTO `paises` (`nombre`, `bandera`, `arancel`, `moneda`, `tipocambio`, `sanitario`) VALUES
+('Brasil', '🇧🇷', 0.00, 'BRL', 5.4200, 'ANVISA'),
+('México', '🇲🇽', 10.00, 'MXN', 18.2000, 'COFEPRIS'),
+('Chile', '🇨🇱', 6.00, 'CLP', 930.0000, 'SAG'),
+('Paraguay', '🇵🇾', 0.00, 'PYG', 7500.0000, 'INAN'),
+('Uruguay', '🇺🇾', 0.00, 'UYU', 39.5000, 'MSP');

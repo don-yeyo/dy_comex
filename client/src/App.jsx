@@ -8,7 +8,8 @@ import {
   Receipt, Ship, ClipboardList, Leaf, Scroll, FileSignature, File,
   Mail, Phone, MessageCircle, Camera, ArrowRight, Activity, Target,
   BarChart3, Tag, Clock, MapPin, Building2, ChevronRight, AlertTriangle,
-  Filter, PieChart, Boxes, Send
+  Filter, PieChart, Boxes, Send, Paperclip, ChevronLeft, Calendar as CalendarIcon,
+  CheckCircle2, Clock3, AlertCircle, ShoppingBag, FileSpreadsheet
 } from 'lucide-react';
 import logo from './assets/logo-don-yeyo-png-sin-fondo.png';
 import { ToastContainer, useToast } from './components/Toast';
@@ -24,13 +25,13 @@ import './App.css';
 // Config from env
 const APP_CONFIG = {
   companyName: import.meta.env.VITE_COMPANY_NAME || 'DON YEYO S.A.',
-  appVersion: import.meta.env.VITE_APP_VERSION || '1.0.0',
+  appVersion: import.meta.env.VITE_APP_VERSION || '1.1.0',
   appName: import.meta.env.VITE_APP_NAME || 'ComEx CRM',
   defaultUserName: import.meta.env.VITE_DEFAULT_USER_NAME || 'Usuario',
   defaultUserEmail: import.meta.env.VITE_DEFAULT_USER_EMAIL || 'usuario@empresa.com'
 };
 
-// Configurar base URL e Interceptor de Axios para capturar fallos globales de conexión
+// Configurar base URL e Interceptor de Axios
 axios.defaults.baseURL = '/api';
 
 axios.interceptors.response.use(
@@ -38,9 +39,12 @@ axios.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
     const errorMsg = error.response?.data?.error || error.message || '';
-    window.dispatchEvent(new CustomEvent('api-request-failed', {
-      detail: { status, message: errorMsg }
-    }));
+    const configUrl = error.config?.url || '';
+    if (!configUrl.includes('/system/db-status')) {
+      window.dispatchEvent(new CustomEvent('api-request-failed', {
+        detail: { status, message: errorMsg }
+      }));
+    }
     return Promise.reject(error);
   }
 );
@@ -60,13 +64,17 @@ const VALIDATION_RULES = {
     lugar: { maxLength: 150, label: 'Lugar' },
     contactos: { maxLength: 300, label: 'Contactos' },
     ronda_reuniones: { min: 0, label: 'Nro. de reuniones' },
-    ronda_importadores: { min: 0, label: 'Importadores contactados' },
-    ronda_pedidos: { min: 0, label: 'Pedidos generados' }
+    ronda_importadores: { min: 0, label: 'Contactos calificados' }
   },
   oportunidad: {
     nombre: { required: true, maxLength: 200, label: 'Nombre' },
-    monto: { min: 0, label: 'Monto' },
-    prob: { min: 0, max: 100, label: 'Probabilidad' }
+    monto: { min: 0, label: 'Inversión necesaria' }
+  },
+  operacion: {
+    numero_pedido: { required: true, maxLength: 50, label: 'Número de pedido' },
+    unidades: { min: 0, label: 'Unidades' },
+    valor_usd: { min: 0, label: 'Valor en USD' },
+    kilogramos: { min: 0, label: 'Kilogramos' }
   },
   tarea: {
     titulo: { required: true, maxLength: 200, label: 'Descripción' }
@@ -82,16 +90,10 @@ const VALIDATION_RULES = {
   comunicacion: {
     asunto: { required: true, maxLength: 200, label: 'Asunto' }
   },
-  documento: {
-    nombre: { required: true, maxLength: 200, label: 'Nombre' },
-    numero: { maxLength: 100, label: 'Número' }
-  },
   pais: {
     nombre: { required: true, maxLength: 100, label: 'País' },
     bandera: { maxLength: 4, label: 'Bandera' },
-    incoterm: { maxLength: 50, label: 'Incoterm' },
-    moneda: { maxLength: 10, label: 'Moneda' },
-    ncm: { maxLength: 30, label: 'NCM' }
+    moneda: { maxLength: 10, label: 'Moneda' }
   },
   precio: {
     competidor: { required: true, maxLength: 150, label: 'Competidor' },
@@ -127,7 +129,7 @@ function validateForm(modalType, values) {
   return errors;
 }
 
-// Helpers de fecha ultra-robustos (evitan Invalid Date y NaNd)
+// Helpers de fecha
 const parseDateStr = (d) => {
   if (!d) return null;
   const s = String(d).trim().substring(0, 10);
@@ -142,6 +144,12 @@ const fmtDate = (d) => {
   return dt.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+const fmtTime = (t) => {
+  if (!t) return '';
+  const s = String(t).trim().substring(0, 5);
+  return s ? `${s} hs` : '';
+};
+
 const daysFrom = (d) => {
   const dt = parseDateStr(d);
   if (!dt) return 9999;
@@ -150,410 +158,250 @@ const daysFrom = (d) => {
   return Math.round((dt - today) / (1000 * 60 * 60 * 24));
 };
 
-const toSqlDate = (d) => {
-  if (!d) return null;
-  const s = String(d).trim();
-  if (s.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(s)) {
-    return s.substring(0, 10);
-  }
-  return null;
-};
-
-// Compresor de imágenes para fotos de competidores
-const compressImage = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800;
-        let width = img.width;
-        let height = img.height;
-        if (width > MAX_WIDTH) {
-          height = Math.round((height * MAX_WIDTH) / width);
-          width = MAX_WIDTH;
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.7));
-      };
-      img.onerror = reject;
-      img.src = e.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
-
-// Badge de prioridad
-const priorBadge = (p) => {
-  const m = { alta: 'badge-red', media: 'badge-amber', baja: 'badge-gray' };
-  return <span className={`badge ${m[p] || 'badge-gray'}`}>{p || 'media'}</span>;
-};
-
-// Badge de etapa
-const etapaBadge = (e) => {
-  const m = { Prospecto: 'badge-gray', Contactado: 'badge-blue', Propuesta: 'badge-amber', Negociación: 'badge-purple', Cerrado: 'badge-green', Perdido: 'badge-red' };
-  return <span className={`badge ${m[e] || 'badge-gray'}`}>{e}</span>;
-};
-
-// Badge de estado
-const estadoBadge = (e) => {
-  const m = { Activo: 'badge-green', Prospecto: 'badge-gray', 'En proceso': 'badge-amber', Inactivo: 'badge-red', Vigente: 'badge-green', 'Por vencer': 'badge-amber', Vencido: 'badge-red', Realizada: 'badge-green', Planificada: 'badge-blue', Cancelada: 'badge-red', Pendiente: 'badge-gray', 'En evaluación': 'badge-amber', 'Positivo': 'badge-green', Negativo: 'badge-red', Cobrado: 'badge-green', 'Cobrado parcial': 'badge-amber', 'En Negociacion': 'badge-amber' };
-  return <span className={`badge ${m[e] || 'badge-gray'}`}>{e}</span>;
-};
-
-// Lucide icon por tipo de visita
-const visitaIconMap = {
-  'Feria internacional': <Landmark size={16} />,
-  'Ronda de negocios': <Handshake size={16} />,
-  'Reunión comercial': <BriefcaseBusiness size={16} />,
-  'Visita a cliente': <Store size={16} />,
-  'Videoconferencia': <Video size={16} />
-};
-const visitaIcon = (tipo) => visitaIconMap[tipo] || <Calendar size={16} />;
-
-// Lucide icon por tipo de documento
-const docIconMap = {
-  'Invoice': <Receipt size={16} />,
-  'Bill of Lading': <Ship size={16} />,
-  'Packing List': <ClipboardList size={16} />,
-  'Certificado fitosanitario': <Leaf size={16} />,
-  'Certificado de origen': <Scroll size={16} />,
-  'Contrato': <FileSignature size={16} />,
-  'Otro': <File size={16} />
-};
-const docIcon = (tipo) => docIconMap[tipo] || <File size={16} />;
-
-// Lucide icon por tipo de comunicación
-const comIconMap = {
-  Email: <Mail size={16} />,
-  Llamada: <Phone size={16} />,
-  WhatsApp: <MessageCircle size={16} />,
-  Reunión: <Handshake size={16} />,
-  Videollamada: <Camera size={16} />
-};
-const comIcon = (tipo) => comIconMap[tipo] || <MessageCircle size={16} />;
-
-// ========== LOCALSTORAGE helpers ==========
-const lsGet = (key, fallback = '') => {
-  try { return localStorage.getItem(`dy_${key}`) || fallback; } catch { return fallback; }
-};
-const lsSet = (key, val) => {
-  try { localStorage.setItem(`dy_${key}`, val); } catch { /* noop */ }
-};
-
 export default function App() {
-  const { isAuthenticated, user: authUser, logout, loading: authLoading } = useAuth();
-  const user = authUser || { name: APP_CONFIG.defaultUserName, email: APP_CONFIG.defaultUserEmail, rol: 'admin' };
+  const toast = useToast();
+  const { account, isAuthenticated } = useAuth();
+  const [theme, setTheme] = useState(() => localStorage.getItem('dy_theme') || 'light');
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [subTab, setSubTab] = useState('muestras');
+  const [intelTab, setIntelTab] = useState('precios');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
-  const [uiZoom, setUiZoom] = useState(localStorage.getItem('uiZoom') || 'md');
-  const [activeTab, setActiveTab] = useState(lsGet('activeTab', 'dashboard'));
-  const [isDrawerOpen, setDrawerOpen] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  // Filtros de búsqueda global e inteligencia
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [intelFilterPais, setIntelFilterPais] = useState('');
+  const [intelFilterMarca, setIntelFilterMarca] = useState('');
 
-  
-  // Toast & Confirm
-  const { toasts, addToast, removeToast } = useToast();
-  const [confirmState, setConfirmState] = useState({ open: false, title: '', message: '', onConfirm: null });
-
-  // Estados de Negocio
-  const [paises, setPaises] = useState([]);
+  // Estados de datos
   const [contactos, setContactos] = useState([]);
-  const [finnegansClientes, setFinnegansClientes] = useState([]);
   const [visitas, setVisitas] = useState([]);
   const [oportunidades, setOportunidades] = useState([]);
+  const [cobranzas, setCobranzas] = useState([]);
+  const [tareas, setTareas] = useState([]);
   const [muestras, setMuestras] = useState([]);
   const [comunicaciones, setComunicaciones] = useState([]);
-  const [documentos, setDocumentos] = useState([]);
+  const [operaciones, setOperaciones] = useState([]);
+  const [paises, setPaises] = useState([]);
   const [precios, setPrecios] = useState([]);
   const [tendencias, setTendencias] = useState([]);
   const [calculos, setCalculos] = useState([]);
-  const [cobranzas, setCobranzas] = useState([]);
-  const [tareas, setTareas] = useState([]);
-  const [productosCatalogo, setProductosCatalogo] = useState([]);
+  const [productosFinnegans, setProductosFinnegans] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Estado temporal para multi-producto en muestras
+  // Estados de filtros por sección
+  const [tareaFilterStatus, setTareaFilterStatus] = useState('');
+  const [tareaFilterPrio, setTareaFilterPrio] = useState('');
+  const [contactoFilterEstado, setContactoFilterEstado] = useState('');
+  const [visitaFilterTipo, setVisitaFilterTipo] = useState('');
+  const [oportunidadFilterEtapa, setOportunidadFilterEtapa] = useState('');
+  const [cobranzaFilterEstado, setCobranzaFilterEstado] = useState('');
+  const [muestraFilterRes, setMuestraFilterRes] = useState('');
+  const [comFilterTipo, setComFilterTipo] = useState('');
+  const [operacionFilterEstado, setOperacionFilterEstado] = useState('');
+
+  // Estado del modal de confirmación de eliminación
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  // Estado del modal universal
+  const [showModal, setShowModal] = useState(null);
+  const [editingItem, setEditingItem] = useState(null);
+  const [formValues, setFormValues] = useState({});
+
+  // Lightbox de imágenes
+  const [previewImage, setPreviewImage] = useState(null);
+
+  // Muestras: array de productos seleccionados
   const [muestraProductos, setMuestraProductos] = useState([]);
   const [muestraProductoInput, setMuestraProductoInput] = useState('');
   const [muestraCantInput, setMuestraCantInput] = useState('');
   const [muestraLoteInput, setMuestraLoteInput] = useState('');
-  const [previewImage, setPreviewImage] = useState(null);
 
-  // Estados de Formularios y Modales
-  const [showModal, setShowModal] = useState(null);
-  const [formValues, setFormValues] = useState({});
-  const [loadingSync, setLoadingSync] = useState(false);
-  const [subTab, setSubTab] = useState('muestras');
-  const [intelTab, setIntelTab] = useState('precios');
+  // Calendario Centralizado
+  const [calendarDate, setCalendarDate] = useState(new Date());
+  const [calendarViewMode, setCalendarViewMode] = useState('grid'); // 'grid' | 'timeline'
 
-  // ========== FILTROS (con localStorage) ==========
-  const [taskFilterStatus, setTaskFilterStatus] = useState(lsGet('f_taskStatus'));
-  const [taskFilterPrior, setTaskFilterPrior] = useState(lsGet('f_taskPrior'));
-  const [contactSearch, setContactSearch] = useState('');
-  const [contactFilterPais, setContactFilterPais] = useState(lsGet('f_contactPais'));
-  const [contactFilterRol, setContactFilterRol] = useState(lsGet('f_contactRol'));
-  const [visitaFilterTipo, setVisitaFilterTipo] = useState(lsGet('f_visitaTipo'));
-  const [visitaFilterEstado, setVisitaFilterEstado] = useState(lsGet('f_visitaEstado'));
-  const [opFilterEtapa, setOpFilterEtapa] = useState(lsGet('f_opEtapa'));
-  const [opFilterMarca, setOpFilterMarca] = useState(lsGet('f_opMarca'));
-  const [muestraFilterRes, setMuestraFilterRes] = useState(lsGet('f_muestraRes'));
-  const [comFilterTipo, setComFilterTipo] = useState(lsGet('f_comTipo'));
-  const [docFilterTipo, setDocFilterTipo] = useState(lsGet('f_docTipo'));
-  const [docFilterEstado, setDocFilterEstado] = useState(lsGet('f_docEstado'));
-  const [cobFilterEstado, setCobFilterEstado] = useState(lsGet('f_cobEstado'));
-  const [cobFilterPais, setCobFilterPais] = useState(lsGet('f_cobPais'));
-  const [cobSearch, setCobSearch] = useState('');
-  const [dashYearFilter, setDashYearFilter] = useState('');
-
-  // Persist filters to localStorage
-  useEffect(() => { lsSet('f_taskStatus', taskFilterStatus); }, [taskFilterStatus]);
-  useEffect(() => { lsSet('f_taskPrior', taskFilterPrior); }, [taskFilterPrior]);
-  useEffect(() => { lsSet('f_contactPais', contactFilterPais); }, [contactFilterPais]);
-  useEffect(() => { lsSet('f_contactRol', contactFilterRol); }, [contactFilterRol]);
-  useEffect(() => { lsSet('f_visitaTipo', visitaFilterTipo); }, [visitaFilterTipo]);
-  useEffect(() => { lsSet('f_visitaEstado', visitaFilterEstado); }, [visitaFilterEstado]);
-  useEffect(() => { lsSet('f_opEtapa', opFilterEtapa); }, [opFilterEtapa]);
-  useEffect(() => { lsSet('f_opMarca', opFilterMarca); }, [opFilterMarca]);
-  useEffect(() => { lsSet('f_muestraRes', muestraFilterRes); }, [muestraFilterRes]);
-  useEffect(() => { lsSet('f_comTipo', comFilterTipo); }, [comFilterTipo]);
-  useEffect(() => { lsSet('f_docTipo', docFilterTipo); }, [docFilterTipo]);
-  useEffect(() => { lsSet('f_docEstado', docFilterEstado); }, [docFilterEstado]);
-  useEffect(() => { lsSet('f_cobEstado', cobFilterEstado); }, [cobFilterEstado]);
-  useEffect(() => { lsSet('f_cobPais', cobFilterPais); }, [cobFilterPais]);
-
-  // Persist active tab
-  useEffect(() => { lsSet('activeTab', activeTab); }, [activeTab]);
-
-  // Carga Inicial de Datos
-  const fetchData = async () => {
-    try {
-      const [
-        paisesRes, contactosRes, visitasRes, oportunidadesRes, 
-        muestrasRes, comunicacionesRes, documentosRes, preciosRes, 
-        tendenciasRes, calculosRes, cobranzasRes, tareasRes
-      ] = await Promise.all([
-        axios.get('/paises'),
-        axios.get('/contactos'),
-        axios.get('/visitas'),
-        axios.get('/oportunidades'),
-        axios.get('/muestras'),
-        axios.get('/comunicaciones'),
-        axios.get('/documentos'),
-        axios.get('/precios'),
-        axios.get('/tendencias'),
-        axios.get('/calculos'),
-        axios.get('/cobranzas'),
-        axios.get('/tareas')
-      ]);
-
-      const ensureArray = (val) => Array.isArray(val) ? val : [];
-
-      setPaises(ensureArray(paisesRes.data));
-      setContactos(ensureArray(contactosRes.data));
-      setVisitas(ensureArray(visitasRes.data));
-      setOportunidades(ensureArray(oportunidadesRes.data));
-      setMuestras(ensureArray(muestrasRes.data));
-      setComunicaciones(ensureArray(comunicacionesRes.data));
-      setDocumentos(ensureArray(documentosRes.data));
-      setPrecios(ensureArray(preciosRes.data));
-      setTendencias(ensureArray(tendenciasRes.data));
-      setCalculos(ensureArray(calculosRes.data));
-      setCobranzas(ensureArray(cobranzasRes.data));
-      setTareas(ensureArray(tareasRes.data));
-
-
-      // Cargar catálogo de productos Finnegans (con caché diaria en backend)
-      try {
-        const prodRes = await axios.get('/finnegans/productos');
-        setProductosCatalogo(prodRes.data || []);
-      } catch (prodErr) {
-        console.warn('No se pudo cargar catálogo de productos Finnegans:', prodErr.message);
-      }
-    } catch (err) {
-      console.error('Error cargando datos de la API:', err);
-    }
-  };
-
-  useEffect(() => { fetchData(); }, []);
+  // Catálogo ampliado de productos
+  const productosCatalogo = useMemo(() => {
+    if (productosFinnegans.length > 0) return productosFinnegans;
+    return [
+      { codigo: 'DY-TAP-01', nombre: 'Tapas de Empanadas Hoja Don Yeyo 330g' },
+      { codigo: 'DY-TAP-02', nombre: 'Tapas de Empanadas Criollas Don Yeyo 330g' },
+      { codigo: 'DY-PST-01', nombre: 'Tapas de Pascualina Hoja Don Yeyo 400g' },
+      { codigo: 'DY-PAS-01', nombre: 'Fideos Tallarines Don Yeyo 500g' },
+      { codigo: 'DY-TOR-01', nombre: 'Tortillas de Trigo Clásicas Don Yeyo 240g' },
+      { codigo: 'DEV-TAP-01', nombre: 'Tapas de Empanadas DeViano Premium 350g' }
+    ];
+  }, [productosFinnegans]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
+    localStorage.setItem('dy_theme', theme);
   }, [theme]);
 
-  useEffect(() => {
-    document.documentElement.setAttribute('data-zoom', uiZoom);
-    localStorage.setItem('uiZoom', uiZoom);
-  }, [uiZoom]);
+  // Carga inicial de datos
+  const loadData = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setLoading(true);
+    try {
+      const [
+        resC, resV, resO, resCob, resT, resM, resCom, resOp, resP, resPr, resTen, resCalc, resProd
+      ] = await Promise.all([
+        axios.get('/contactos'),
+        axios.get('/visitas'),
+        axios.get('/oportunidades'),
+        axios.get('/cobranzas'),
+        axios.get('/tareas'),
+        axios.get('/muestras'),
+        axios.get('/comunicaciones'),
+        axios.get('/operaciones'),
+        axios.get('/paises'),
+        axios.get('/precios'),
+        axios.get('/tendencias'),
+        axios.get('/calculos'),
+        axios.get('/finnegans/productos').catch(() => ({ data: [] }))
+      ]);
+
+      setContactos(resC.data);
+      setVisitas(resV.data);
+      setOportunidades(resO.data);
+      setCobranzas(resCob.data);
+      setTareas(resT.data);
+      setMuestras(resM.data);
+      setComunicaciones(resCom.data);
+      setOperaciones(resOp.data);
+      setPaises(resP.data);
+      setPrecios(resPr.data);
+      setTendencias(resTen.data);
+      setCalculos(resCalc.data);
+      if (resProd.data && resProd.data.length > 0) {
+        setProductosFinnegans(resProd.data);
+      }
+    } catch (err) {
+      console.error('Error al cargar datos:', err);
+      toast.error('Error de conexión con el servidor. Revisá la base de datos.');
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    if (showModal) {
-      document.body.classList.add('modal-open');
-    } else {
-      document.body.classList.remove('modal-open');
-    }
-    return () => document.body.classList.remove('modal-open');
-  }, [showModal]);
+    loadData();
+  }, [loadData]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-  // Sincronizar clientes con Finnegans ERP
-  const syncFinnegansClientes = async () => {
-    setLoadingSync(true);
-    try {
-      const res = await axios.get('/finnegans/clientes');
-      setFinnegansClientes(res.data);
-      addToast({ type: 'success', title: 'Sincronización completada', message: 'Los clientes de Finnegans ERP se sincronizaron correctamente.' });
-    } catch (err) {
-      console.error(err);
-      addToast({ type: 'error', title: 'Error de sincronización', message: 'No se pudo conectar con Finnegans ERP. Verificá la configuración.' });
-    } finally {
-      setLoadingSync(false);
-    }
-  };
-
-  // ========== CRUD genérico con validación ==========
-  const handleSave = async (e, endpoint) => {
-    e.preventDefault();
-    let payload = { ...formValues };
-
-    // Saneamiento de fechas para evitar errores MySQL
-    ['fecha', 'cierre', 'vencimiento', 'tc_fecha', 'embarque'].forEach(k => {
-      if (payload[k] !== undefined) {
-        payload[k] = toSqlDate(payload[k]);
-      }
-    });
-
-    // Para muestras: serializar productos como JSON array de objetos
-    if (showModal === 'muestra') {
-      if (muestraProductos.length === 0) {
-        addToast({ type: 'error', title: 'Error de validación', message: 'Agregá al menos un producto a la muestra.', duration: 6000 });
-        return;
-      }
-      payload.producto = JSON.stringify(muestraProductos);
-    }
-    // Validar
-    const errors = validateForm(showModal, payload);
-    if (errors.length > 0) {
-      addToast({ type: 'error', title: 'Error de validación', message: errors.join(' · '), duration: 6000 });
-      return;
-    }
-    try {
-      if (payload.id) {
-        await axios.put(`/${endpoint}/${payload.id}`, payload);
-      } else {
-        await axios.post(`/${endpoint}`, payload);
-        // Guardar valores frecuentes para siguiente ingreso
-        if (payload.pais_id) lsSet('lastPaisId', payload.pais_id);
-        if (payload.marca) lsSet('lastMarca', payload.marca);
-      }
-      addToast({ type: 'success', message: payload.id ? 'Registro actualizado correctamente.' : 'Registro creado correctamente.' });
-      setShowModal(null);
-      setFormValues({});
+  // Abre modal para nuevo elemento
+  const openNew = (type, defaultData = {}) => {
+    setEditingItem(null);
+    setFormValues({ ...defaultData });
+    if (type === 'muestra') {
       setMuestraProductos([]);
       setMuestraProductoInput('');
       setMuestraCantInput('');
       setMuestraLoteInput('');
-      fetchData();
-    } catch (err) {
-      const detail = err.response?.data?.error || err.response?.data?.message || err.message;
-      const showDetail = import.meta.env.VITE_SHOW_DETAILED_ERRORS === 'true' || import.meta.env.DEV;
-      const msg = showDetail && detail ? `No se pudo guardar el registro: ${detail}` : 'No se pudo guardar el registro. Intentá nuevamente.';
-      addToast({ type: 'error', title: 'Error al guardar', message: msg, duration: 8000 });
     }
+    setShowModal(type);
   };
 
-  // Confirmación de eliminación via modal custom
-  const requestDelete = (endpoint, id, label) => {
-    setConfirmState({
-      open: true,
-      title: '¿Eliminar registro?',
-      message: label ? `Estás por eliminar "${label}". Esta acción no se puede deshacer.` : 'Esta acción eliminará el registro de forma permanente.',
-      onConfirm: () => executeDelete(endpoint, id)
-    });
-  };
-
-  const executeDelete = async (endpoint, id) => {
-    setConfirmState({ open: false });
-    try {
-      await axios.delete(`/${endpoint}/${id}`);
-      addToast({ type: 'success', message: 'Registro eliminado.' });
-      fetchData();
-    } catch (err) {
-      const detail = err.response?.data?.error || err.response?.data?.message || err.message;
-      const showDetail = import.meta.env.VITE_SHOW_DETAILED_ERRORS === 'true' || import.meta.env.DEV;
-      const msg = showDetail && detail ? `No se pudo eliminar el registro: ${detail}` : 'No se pudo eliminar el registro.';
-      addToast({ type: 'error', title: 'Error al eliminar', message: msg, duration: 8000 });
-    }
-  };
-
-  const openEdit = (modalType, item) => {
+  // Abre modal para editar elemento existente
+  const openEdit = (type, item) => {
+    setEditingItem(item);
     setFormValues({ ...item });
-    // Para muestras: parsear productos JSON (objetos o strings)
-    if (modalType === 'muestra' && item.producto) {
+    if (type === 'muestra') {
       try {
         const parsed = JSON.parse(item.producto);
         if (Array.isArray(parsed)) {
-          setMuestraProductos(parsed.map(p => typeof p === 'string' ? { nombre: p, cantidad: '1', lote: '' } : p));
+          setMuestraProductos(parsed.map(p => typeof p === 'string' ? { nombre: p } : p));
         } else {
-          setMuestraProductos([{ nombre: String(item.producto), cantidad: '1', lote: '' }]);
+          setMuestraProductos([{ nombre: String(item.producto) }]);
         }
       } catch {
-        setMuestraProductos([{ nombre: String(item.producto), cantidad: '1', lote: '' }]);
+        setMuestraProductos(item.producto ? [{ nombre: String(item.producto) }] : []);
       }
       setMuestraProductoInput('');
       setMuestraCantInput('');
       setMuestraLoteInput('');
     }
-    setShowModal(modalType);
+    setShowModal(type);
   };
 
-  const openNew = (modalType) => {
-    // Pre-fill con valores por defecto para que los selectores no queden en null si el usuario no los toca
-    const prefill = {};
-    if (modalType === 'documento') { prefill.tipo = 'Invoice'; prefill.estado = 'Vigente'; }
-    if (modalType === 'visita') { prefill.tipo = 'Feria internacional'; prefill.estado = 'Planificada'; prefill.fecha = new Date().toISOString().substring(0, 10); }
-    if (modalType === 'contacto') { prefill.rol = 'Importador'; prefill.estado = 'Activo'; }
-    if (modalType === 'comunicacion') { prefill.tipo = 'Email'; prefill.fecha = new Date().toISOString().substring(0, 10); }
-    if (modalType === 'oportunidad') { prefill.marca = 'Don Yeyo'; prefill.etapa = 'Prospecto'; }
-    if (modalType === 'muestra') { prefill.resultado = 'Pendiente'; prefill.fecha = new Date().toISOString().substring(0, 10); }
-    if (modalType === 'cobranza') { prefill.marca = 'Don Yeyo'; prefill.estado = 'Pendiente'; }
-    if (modalType === 'tarea') { prefill.prioridad = 'media'; }
-    if (modalType === 'precio') { prefill.unidad = 'unidades'; prefill.peso = 1.000; prefill.fecha = new Date().toISOString().substring(0, 10); }
+  // Guardar formulario universal
+  const handleSave = async (e, endpoint) => {
+    e.preventDefault();
+    const validationErrors = validateForm(showModal, formValues);
+    if (validationErrors.length > 0) {
+      toast.error(validationErrors[0]);
+      return;
+    }
 
-    const lastPais = lsGet('lastPaisId');
-    const lastMarca = lsGet('lastMarca');
-    if (['oportunidad', 'muestra', 'cobranza', 'documento', 'precio', 'tendencia', 'tarea'].includes(modalType) && lastPais) {
-      prefill.pais_id = lastPais;
+    try {
+      let dataToSend = { ...formValues };
+
+      if (showModal === 'muestra') {
+        if (muestraProductos.length === 0) {
+          toast.error('Agregá al menos un producto a la muestra.');
+          return;
+        }
+        dataToSend.producto = JSON.stringify(muestraProductos);
+      }
+
+      if (editingItem) {
+        await axios.put(`/${endpoint}/${editingItem.id}`, dataToSend);
+        toast.success('Registro actualizado correctamente');
+      } else {
+        await axios.post(`/${endpoint}`, dataToSend);
+        toast.success('Registro creado correctamente');
+      }
+      setShowModal(null);
+      loadData();
+    } catch (err) {
+      console.error('Error al guardar:', err);
+      const serverMsg = err.response?.data?.error || err.message;
+      toast.error(`Error al guardar: ${serverMsg}`);
     }
-    if (['oportunidad', 'cobranza'].includes(modalType) && lastMarca) {
-      prefill.marca = lastMarca;
-    }
-    if (modalType === 'muestra') {
-      setMuestraProductos([]);
-      setMuestraProductoInput('');
-      setMuestraCantInput('');
-      setMuestraLoteInput('');
-    }
-    setFormValues(prefill);
-    setShowModal(modalType);
   };
 
-  // Helpers para multi-producto en muestras (con cantidad y lote)
+  // Confirmar eliminación
+  const requestDelete = (endpoint, id, name) => {
+    setConfirmDelete({ endpoint, id, name });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete) return;
+    const { endpoint, id } = confirmDelete;
+    try {
+      await axios.delete(`/${endpoint}/${id}`);
+      toast.success('Registro eliminado');
+      loadData();
+    } catch (err) {
+      console.error('Error al eliminar:', err);
+      toast.error('Error al eliminar el registro');
+    } finally {
+      setConfirmDelete(null);
+    }
+  };
+
+  const setFv = (field, value) => setFormValues(prev => ({ ...prev, [field]: value }));
+
+  const fv = (field) => formValues[field] !== undefined && formValues[field] !== null ? formValues[field] : '';
+
+  const fvDate = (field) => {
+    const val = formValues[field];
+    if (!val) return '';
+    return String(val).substring(0, 10);
+  };
+
+  const maxLen = (modalType, field) => VALIDATION_RULES[modalType]?.[field]?.maxLength;
+
+  // Agregar producto a lista de muestras
   const addMuestraProducto = () => {
-    const val = muestraProductoInput.trim();
-    if (!val) return;
-    const item = {
-      nombre: val,
-      cantidad: muestraCantInput.trim() || '1',
-      lote: muestraLoteInput.trim() || ''
+    if (!muestraProductoInput.trim()) return;
+    const newProd = {
+      nombre: muestraProductoInput.trim(),
+      cantidad: muestraCantInput.trim() || null,
+      lote: muestraLoteInput.trim() || null
     };
-    setMuestraProductos(prev => [...prev, item]);
+    setMuestraProductos(prev => [...prev, newProd]);
     setMuestraProductoInput('');
     setMuestraCantInput('');
     setMuestraLoteInput('');
@@ -563,564 +411,998 @@ export default function App() {
     setMuestraProductos(prev => prev.filter((_, i) => i !== index));
   };
 
-  const toggleTaskStatus = async (task) => {
+  // Toggle de tareas completadas
+  const toggleTareaStatus = async (t) => {
+    const nextStatus = t.status === 'hecha' ? 'pendiente' : 'hecha';
     try {
-      const newStatus = task.status === 'hecha' ? 'pendiente' : 'hecha';
-      await axios.put(`/tareas/${task.id}`, { ...task, status: newStatus });
-      fetchData();
+      await axios.put(`/tareas/${t.id}`, { status: nextStatus });
+      loadData();
     } catch (err) {
-      console.error(err);
+      toast.error('Error al actualizar estado de tarea');
     }
   };
 
-  // ========== MÉTRICAS ==========
-  const safeArr = (arr) => Array.isArray(arr) ? arr : [];
+  // Badges y badges de estados
+  const estadoBadge = (est) => {
+    const map = {
+      'Activo': 'badge-emerald', 'Realizada': 'badge-emerald', 'Positivo': 'badge-emerald',
+      'Cobrado': 'badge-emerald', 'Vigente': 'badge-emerald', 'Despachado': 'badge-emerald',
+      'Planificada': 'badge-sky', 'En proceso': 'badge-amber', 'En evaluación': 'badge-amber',
+      'Cobrado parcial': 'badge-amber', 'Por vencer': 'badge-amber', 'En análisis': 'badge-sky',
+      'Pedido recibido': 'badge-sky', 'Prospecto': 'badge-navy', 'Pendiente': 'badge-navy',
+      'Inactivo': 'badge-gray', 'Cancelada': 'badge-red', 'Negativo': 'badge-red',
+      'Vencido': 'badge-red', 'Descartado': 'badge-red', 'Finalizado': 'badge-emerald'
+    };
+    return <span className={`badge ${map[est] || 'badge-navy'}`}>{est}</span>;
+  };
 
-  const cobradoAnual = safeArr(cobranzas).filter(c => c.estado === 'Cobrado').reduce((sum, c) => sum + parseFloat(c.monto || 0), 0);
-  const cobradoParcial = safeArr(cobranzas).filter(c => c.estado === 'Cobrado parcial').reduce((sum, c) => sum + parseFloat(c.cobrado_monto || 0), 0);
-  const cobranzaTotalCobrada = cobradoAnual + cobradoParcial;
-  const cobranzaPendiente = safeArr(cobranzas).filter(c => c.estado === 'Pendiente' || c.estado === 'Cobrado parcial').reduce((sum, c) => sum + (parseFloat(c.monto || 0) - parseFloat(c.cobrado_monto || 0)), 0);
-  const cobranzaVencida = safeArr(cobranzas).filter(c => c.estado === 'Vencido').reduce((sum, c) => sum + (parseFloat(c.monto || 0) - parseFloat(c.cobrado_monto || 0)), 0);
-  const pipeline = safeArr(oportunidades).filter(o => o.etapa !== 'Cerrado' && o.etapa !== 'Perdido').reduce((s, o) => s + parseFloat(o.monto || 0), 0);
-  const tareasVencidas = safeArr(tareas).filter(t => t.status !== 'hecha' && t.fecha && daysFrom(t.fecha) < 0);
-  const tareasPendientes = safeArr(tareas).filter(t => t.status !== 'hecha');
+  const etapaBadge = (etapa) => {
+    const map = {
+      'En análisis': 'badge-sky',
+      'En proceso': 'badge-amber',
+      'Finalizado': 'badge-emerald',
+      'Descartado': 'badge-red',
+      'Primer contacto': 'badge-navy',
+      'Reunión exploratoria': 'badge-sky',
+      'Cotización': 'badge-amber',
+      'Negociación': 'badge-purple',
+      'Habilitación regulatoria': 'badge-teal'
+    };
+    return <span className={`badge ${map[etapa] || 'badge-navy'}`}>{etapa}</span>;
+  };
 
-  const initials = (user?.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  const prioridadBadge = (prio) => {
+    const map = { 'alta': 'badge-red', 'media': 'badge-amber', 'baja': 'badge-gray' };
+    return <span className={`badge ${map[prio] || 'badge-gray'}`}>{prio}</span>;
+  };
 
-  // ========== ALERTAS ENGINE ==========
-  const alertas = useMemo(() => [
-    ...safeArr(documentos).filter(d => d.vencimiento && daysFrom(d.vencimiento) <= 30 && daysFrom(d.vencimiento) >= -5).map(d => ({
-      tipo: 'Documento', icono: <FileText size={16} />, titulo: d.nombre, detalle: `Vence ${fmtDate(d.vencimiento)}`, dias: daysFrom(d.vencimiento),
-      color: daysFrom(d.vencimiento) < 0 ? 'badge-red' : daysFrom(d.vencimiento) <= 7 ? 'badge-red' : 'badge-amber'
-    })),
-    ...safeArr(visitas).filter(v => v.estado === 'Planificada' && v.fecha && daysFrom(v.fecha) >= 0 && daysFrom(v.fecha) <= 14).map(v => ({
-      tipo: 'Visita', icono: <Calendar size={16} />, titulo: v.titulo, detalle: `${fmtDate(v.fecha)} · ${v.lugar || ''}`, dias: daysFrom(v.fecha), color: 'badge-blue'
-    }))
-  ].sort((a, b) => a.dias - b.dias), [documentos, visitas]);
-
-  // Alertas no visualizadas + Notificaciones Push PWA
-  const [lastSeenAlertsCount, setLastSeenAlertsCount] = useState(
-    parseInt(lsGet('lastSeenAlertsCount', '0')) || 0
-  );
-
-  const unviewedAlertsCount = useMemo(() => {
-    return Math.max(0, alertas.length - lastSeenAlertsCount);
-  }, [alertas.length, lastSeenAlertsCount]);
-
-  useEffect(() => {
-    if (activeTab === 'alertas') {
-      setLastSeenAlertsCount(alertas.length);
-      lsSet('lastSeenAlertsCount', String(alertas.length));
-    }
-  }, [activeTab, alertas.length]);
-
-  useEffect(() => {
-    if (unviewedAlertsCount > 0 && 'Notification' in window && Notification.permission === 'granted') {
-      try {
-        new Notification('ComEx CRM — Alertas de Comercio Exterior', {
-          body: `Tenés ${unviewedAlertsCount} alerta(s) de vencimientos o visitas próximas.`,
-          icon: '/src/assets/logo-don-yeyo-png-sin-fondo.png'
-        });
-      } catch (err) { /* noop */ }
-    }
-  }, [unviewedAlertsCount]);
-
-  const handleHeaderBellClick = () => {
-    setActiveTab('alertas');
-    setLastSeenAlertsCount(alertas.length);
-    lsSet('lastSeenAlertsCount', String(alertas.length));
-    
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+  const comIcon = (tipo) => {
+    switch (tipo) {
+      case 'Email': return <Mail size={14} />;
+      case 'Llamada': return <Phone size={14} />;
+      case 'WhatsApp': return <MessageCircle size={14} />;
+      case 'Reunión': return <User size={14} />;
+      case 'Videollamada': return <Video size={14} />;
+      default: return <Mail size={14} />;
     }
   };
 
-  const menuItems = [
-    { icon: <LayoutDashboard size={18} />, label: 'Dashboard', key: 'dashboard' },
-    { icon: <CheckSquare size={18} />, label: 'Tareas', key: 'tareas', badge: tareasPendientes.length },
-    { icon: <Bell size={18} />, label: 'Alertas', key: 'alertas', badge: alertas.length, badgeColor: 'badge-red' },
-    { icon: <Users size={18} />, label: 'Contactos', key: 'contactos' },
-    { icon: <Calendar size={18} />, label: 'Visitas', key: 'visitas' },
-    { icon: <Briefcase size={18} />, label: 'Oportunidades', key: 'oportunidades' },
-    { icon: <Package size={18} />, label: 'Muestras', key: 'muestras' },
-    { icon: <Globe size={18} />, label: 'Países', key: 'paises' },
-    { icon: <FileText size={18} />, label: 'Documentos', key: 'documentos' },
-    { icon: <TrendingUp size={18} />, label: 'Inteligencia', key: 'inteligencia' },
-    { icon: <Calculator size={18} />, label: 'Calculadora', key: 'calculadora' },
-    { icon: <DollarSign size={18} />, label: 'Cobranzas', key: 'cobranzas' }
-  ];
+  const docIcon = (tipo) => {
+    switch (tipo) {
+      case 'Invoice': return <Receipt size={16} />;
+      case 'Bill of Lading': return <Ship size={16} />;
+      case 'Packing List': return <ClipboardList size={16} />;
+      case 'Certificado fitosanitario': return <Leaf size={16} />;
+      case 'Certificado de origen': return <Scroll size={16} />;
+      case 'Contrato': return <FileSignature size={16} />;
+      default: return <File size={16} />;
+    }
+  };
 
-  // ========== SELECTORES / MEMOS ==========
+  // Listas filtradas
   const filteredTareas = useMemo(() => {
-    let data = [...safeArr(tareas)];
-    if (taskFilterStatus) data = data.filter(t => t.status === taskFilterStatus);
-    if (taskFilterPrior) data = data.filter(t => t.prioridad === taskFilterPrior);
-    data.sort((a, b) => { const pa = { alta: 0, media: 1, baja: 2 }; return (pa[a.prioridad] || 1) - (pa[b.prioridad] || 1); });
-    return data;
-  }, [tareas, taskFilterStatus, taskFilterPrior]);
+    return tareas.filter(t => {
+      const q = globalSearch.toLowerCase();
+      const mQ = !q || (t.titulo?.toLowerCase().includes(q) || t.asignado?.toLowerCase().includes(q) || t.pais_nombre?.toLowerCase().includes(q));
+      const mS = !tareaFilterStatus || t.status === tareaFilterStatus;
+      const mP = !tareaFilterPrio || t.prioridad === tareaFilterPrio;
+      return mQ && mS && mP;
+    });
+  }, [tareas, globalSearch, tareaFilterStatus, tareaFilterPrio]);
 
   const filteredContactos = useMemo(() => {
-    let data = [...safeArr(contactos)];
-    if (contactSearch) data = data.filter(c => `${c.nombre} ${c.apellido || ''} ${c.empresa || ''}`.toLowerCase().includes(contactSearch.toLowerCase()));
-    if (contactFilterPais) data = data.filter(c => c.pais_nombre === contactFilterPais);
-    if (contactFilterRol) data = data.filter(c => c.rol === contactFilterRol);
-    return data;
-  }, [contactos, contactSearch, contactFilterPais, contactFilterRol]);
+    return contactos.filter(c => {
+      const q = globalSearch.toLowerCase();
+      const mQ = !q || (c.nombre?.toLowerCase().includes(q) || c.apellido?.toLowerCase().includes(q) || c.empresa?.toLowerCase().includes(q) || c.ciudad?.toLowerCase().includes(q));
+      const mE = !contactoFilterEstado || c.estado === contactoFilterEstado;
+      return mQ && mE;
+    });
+  }, [contactos, globalSearch, contactoFilterEstado]);
 
   const filteredVisitas = useMemo(() => {
-    let data = [...safeArr(visitas)];
-    if (visitaFilterTipo) data = data.filter(v => v.tipo === visitaFilterTipo);
-    if (visitaFilterEstado) data = data.filter(v => v.estado === visitaFilterEstado);
-    data.sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
-    return data;
-  }, [visitas, visitaFilterTipo, visitaFilterEstado]);
+    return visitas.filter(v => {
+      const q = globalSearch.toLowerCase();
+      const mQ = !q || (v.titulo?.toLowerCase().includes(q) || v.lugar?.toLowerCase().includes(q) || v.contactos?.toLowerCase().includes(q));
+      const mT = !visitaFilterTipo || v.tipo === visitaFilterTipo;
+      return mQ && mT;
+    });
+  }, [visitas, globalSearch, visitaFilterTipo]);
 
   const filteredOportunidades = useMemo(() => {
-    let data = [...safeArr(oportunidades)];
-    if (opFilterEtapa) data = data.filter(o => o.etapa === opFilterEtapa);
-    if (opFilterMarca) data = data.filter(o => o.marca === opFilterMarca);
-    return data;
-  }, [oportunidades, opFilterEtapa, opFilterMarca]);
+    return oportunidades.filter(o => {
+      const q = globalSearch.toLowerCase();
+      const mQ = !q || (o.nombre?.toLowerCase().includes(q) || o.marca?.toLowerCase().includes(q) || o.categoria?.toLowerCase().includes(q) || o.responsable?.toLowerCase().includes(q));
+      const mE = !oportunidadFilterEtapa || o.etapa === oportunidadFilterEtapa;
+      return mQ && mE;
+    });
+  }, [oportunidades, globalSearch, oportunidadFilterEtapa]);
 
-  const filteredMuestras = useMemo(() => {
-    let data = [...safeArr(muestras)];
-    if (muestraFilterRes) data = data.filter(m => m.resultado === muestraFilterRes);
-    return data;
-  }, [muestras, muestraFilterRes]);
-
-  const filteredComunicaciones = useMemo(() => {
-    let data = [...safeArr(comunicaciones)];
-    if (comFilterTipo) data = data.filter(c => c.tipo === comFilterTipo);
-    data.sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
-    return data;
-  }, [comunicaciones, comFilterTipo]);
-
-  const filteredDocumentos = useMemo(() => {
-    let data = [...safeArr(documentos)];
-    if (docFilterTipo) data = data.filter(d => d.tipo === docFilterTipo);
-    if (docFilterEstado) data = data.filter(d => d.estado === docFilterEstado);
-    return data;
-  }, [documentos, docFilterTipo, docFilterEstado]);
+  const filteredOperaciones = useMemo(() => {
+    return operaciones.filter(op => {
+      const q = globalSearch.toLowerCase();
+      const mQ = !q || (op.numero_pedido?.toLowerCase().includes(q) || op.cliente_nombre?.toLowerCase().includes(q) || op.cliente_empresa?.toLowerCase().includes(q) || op.pais_nombre?.toLowerCase().includes(q));
+      const mE = !operacionFilterEstado || op.estado === operacionFilterEstado;
+      return mQ && mE;
+    });
+  }, [operaciones, globalSearch, operacionFilterEstado]);
 
   const filteredCobranzas = useMemo(() => {
-    let data = [...safeArr(cobranzas)];
-    if (cobFilterEstado) data = data.filter(c => c.estado === cobFilterEstado);
-    if (cobFilterPais) data = data.filter(c => c.pais_nombre === cobFilterPais);
-    if (cobSearch) data = data.filter(c => `${c.descripcion || ''} ${c.cliente_nombre || ''}`.toLowerCase().includes(cobSearch.toLowerCase()));
-    return data;
-  }, [cobranzas, cobFilterEstado, cobFilterPais, cobSearch]);
-
-  const dashCobranzas = useMemo(() => {
-    const list = safeArr(cobranzas);
-    if (dashYearFilter === 'all') return list;
-    const curYear = new Date().getFullYear();
-    return list.filter(c => {
-      const yr = c.embarque ? new Date(c.embarque).getFullYear() : null;
-      return yr === curYear;
+    return cobranzas.filter(c => {
+      const q = globalSearch.toLowerCase();
+      const mQ = !q || (c.descripcion?.toLowerCase().includes(q) || c.cliente_nombre?.toLowerCase().includes(q));
+      const mE = !cobranzaFilterEstado || c.estado === cobranzaFilterEstado;
+      return mQ && mE;
     });
-  }, [cobranzas, dashYearFilter]);
+  }, [cobranzas, globalSearch, cobranzaFilterEstado]);
 
-  const paisesUnicos = useMemo(() => [...new Set(safeArr(contactos).map(c => c.pais_nombre).filter(Boolean))], [contactos]);
-  const paisesCobUnicos = useMemo(() => [...new Set(safeArr(cobranzas).map(c => c.pais_nombre).filter(Boolean))], [cobranzas]);
+  const filteredMuestras = useMemo(() => {
+    return muestras.filter(m => {
+      const q = globalSearch.toLowerCase();
+      const mQ = !q || (m.destinatario?.toLowerCase().includes(q) || m.producto?.toLowerCase().includes(q));
+      const mR = !muestraFilterRes || m.resultado === muestraFilterRes;
+      return mQ && mR;
+    });
+  }, [muestras, globalSearch, muestraFilterRes]);
 
-  // ========== RENDER FORM HELPER ==========
-  const fv = (key) => formValues[key] || '';
-  const fvDate = (key) => formValues[key] ? String(formValues[key]).substring(0, 10) : '';
-  const setFv = (key, val) => setFormValues(prev => ({ ...prev, [key]: val }));
-  const maxLen = (modalType, field) => VALIDATION_RULES[modalType]?.[field]?.maxLength;
+  const filteredComunicaciones = useMemo(() => {
+    return comunicaciones.filter(c => {
+      const q = globalSearch.toLowerCase();
+      const mQ = !q || (c.asunto?.toLowerCase().includes(q) || c.contacto_nombre?.toLowerCase().includes(q));
+      const mT = !comFilterTipo || c.tipo === comFilterTipo;
+      return mQ && mT;
+    });
+  }, [comunicaciones, globalSearch, comFilterTipo]);
 
-  if (authLoading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0d2c5c', color: '#ffffff' }}>
-        <div style={{ textAlign: 'center' }}>
-          <img src={logo} alt="Don Yeyo" style={{ height: 50, marginBottom: 16 }} />
-          <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Cargando sesión...</div>
-        </div>
-      </div>
-    );
-  }
+  const filteredPrecios = useMemo(() => {
+    return precios.filter(p => {
+      const mPais = !intelFilterPais || String(p.pais_id) === String(intelFilterPais);
+      const mMarca = !intelFilterMarca || p.competidor?.toLowerCase().includes(intelFilterMarca.toLowerCase()) || p.producto?.toLowerCase().includes(intelFilterMarca.toLowerCase());
+      return mPais && mMarca;
+    });
+  }, [precios, intelFilterPais, intelFilterMarca]);
 
+  const filteredTendencias = useMemo(() => {
+    return tendencias.filter(t => {
+      const mPais = !intelFilterPais || String(t.pais_id) === String(intelFilterPais);
+      const mMarca = !intelFilterMarca || t.titulo?.toLowerCase().includes(intelFilterMarca.toLowerCase()) || t.tags?.toLowerCase().includes(intelFilterMarca.toLowerCase());
+      return mPais && mMarca;
+    });
+  }, [tendencias, intelFilterPais, intelFilterMarca]);
+
+  // Consolidado de eventos para Agenda y Calendario
+  const consolidatedEvents = useMemo(() => {
+    const list = [];
+
+    // Tareas
+    tareas.forEach(t => {
+      if (t.fecha) {
+        list.push({
+          id: `t-${t.id}`,
+          date: t.fecha.substring(0, 10),
+          time: t.hora ? t.hora.substring(0, 5) : '',
+          title: t.titulo,
+          subtitle: `Asignado: ${t.asignado || 'N/A'} · Prioridad ${t.prioridad}`,
+          type: 'tarea',
+          typeLabel: 'Tarea',
+          badgeClass: 'event-tarea',
+          raw: t
+        });
+      }
+    });
+
+    // Visitas
+    visitas.forEach(v => {
+      if (v.fecha) {
+        list.push({
+          id: `v-${v.id}`,
+          date: v.fecha.substring(0, 10),
+          time: v.hora ? v.hora.substring(0, 5) : '',
+          title: v.titulo,
+          subtitle: `Lugar: ${v.lugar || 'Sin especificar'} · ${v.tipo}`,
+          type: 'visita',
+          typeLabel: 'Visita / Reunión',
+          badgeClass: 'event-visita',
+          raw: v
+        });
+      }
+    });
+
+    // Contactos (Próxima acción)
+    contactos.forEach(c => {
+      if (c.proxima_accion_fecha) {
+        list.push({
+          id: `c-${c.id}`,
+          date: c.proxima_accion_fecha.substring(0, 10),
+          time: c.proxima_accion_hora ? c.proxima_accion_hora.substring(0, 5) : '',
+          title: `Próx. Acción: ${c.nombre} (${c.empresa || 'Contacto'})`,
+          subtitle: c.proxima_accion,
+          type: 'contacto',
+          typeLabel: 'Contacto',
+          badgeClass: 'event-contacto',
+          raw: c
+        });
+      }
+    });
+
+    // Muestras (Fecha envío)
+    muestras.forEach(m => {
+      if (m.fecha) {
+        list.push({
+          id: `m-${m.id}`,
+          date: m.fecha.substring(0, 10),
+          time: '',
+          title: `Envío Muestra: ${m.destinatario || 'Cliente'}`,
+          subtitle: `Estado: ${m.resultado}`,
+          type: 'muestra',
+          typeLabel: 'Muestra',
+          badgeClass: 'event-muestra',
+          raw: m
+        });
+      }
+    });
+
+    // Operaciones (Fecha de entrega)
+    operaciones.forEach(op => {
+      if (op.fecha_entrega) {
+        list.push({
+          id: `op-${op.id}`,
+          date: op.fecha_entrega.substring(0, 10),
+          time: '',
+          title: `Entrega Pedido Nº ${op.numero_pedido}`,
+          subtitle: `Cliente: ${op.cliente_nombre || 'Registrado'} · ${op.estado}`,
+          type: 'operacion',
+          typeLabel: 'Operación',
+          badgeClass: 'event-operacion',
+          raw: op
+        });
+      }
+    });
+
+    return list.sort((a, b) => (a.date + (a.time || '00:00')).localeCompare(b.date + (b.time || '00:00')));
+  }, [tareas, visitas, contactos, muestras, operaciones]);
+
+  // Días del mes para el calendario grid
+  const calendarMonthDays = useMemo(() => {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Lunes = 0
+    const totalDays = lastDay.getDate();
+
+    const days = [];
+
+    // Días mes anterior
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+      const d = prevMonthLastDay - i;
+      const dateStr = `${month === 0 ? year - 1 : year}-${String(month === 0 ? 12 : month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push({ day: d, isCurrentMonth: false, dateStr });
+    }
+
+    // Días mes actual
+    const todayStr = new Date().toISOString().substring(0, 10);
+    for (let d = 1; d <= totalDays; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push({ day: d, isCurrentMonth: true, isToday: dateStr === todayStr, dateStr });
+    }
+
+    // Días mes siguiente
+    const remaining = 42 - days.length;
+    for (let d = 1; d <= remaining; d++) {
+      const dateStr = `${month === 11 ? year + 1 : year}-${String(month === 11 ? 1 : month + 2).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push({ day: d, isCurrentMonth: false, dateStr });
+    }
+
+    return days;
+  }, [calendarDate]);
+
+  // Si no está autenticado, muestra login de Microsoft / Fallback local
   if (!isAuthenticated) {
     return <LoginScreen />;
   }
 
+  // Métricas del Dashboard
+  const activeContactsCount = contactos.filter(c => c.estado === 'Activo' || c.estado === 'En proceso').length;
+  const pendingTasksCount = tareas.filter(t => t.status === 'pendiente').length;
+  const activeOpsCount = operaciones.filter(op => op.estado === 'Pedido recibido' || op.estado === 'En proceso').length;
+  const totalOpsUSD = operaciones.reduce((sum, op) => sum + parseFloat(op.valor_usd || 0), 0);
+
+  // Datos para el Funnel Comercial (Contactos Calificados por Etapa)
+  const funnelEtapas = [
+    { name: 'Primer contacto', count: contactos.filter(c => c.etapa_comercial === 'Primer contacto').length, color: '#0d2c5c' },
+    { name: 'Reunión exploratoria', count: contactos.filter(c => c.etapa_comercial === 'Reunión exploratoria').length, color: '#0284c7' },
+    { name: 'Cotización', count: contactos.filter(c => c.etapa_comercial === 'Cotización').length, color: '#f59e0b' },
+    { name: 'Negociación', count: contactos.filter(c => c.etapa_comercial === 'Negociación').length, color: '#7e22ce' },
+    { name: 'Habilitación regulatoria', count: contactos.filter(c => c.etapa_comercial === 'Habilitación regulatoria').length, color: '#0d9488' },
+    { name: 'Clientes Activos', count: contactos.filter(c => c.estado === 'Activo').length, color: '#059669' }
+  ];
+  const maxFunnelCount = Math.max(...funnelEtapas.map(f => f.count), 1);
+
   return (
-
     <div className="layout">
-      {/* TOASTS */}
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
-
-      {/* CONFIRM MODAL */}
-      <ConfirmModal open={confirmState.open} title={confirmState.title} message={confirmState.message} onConfirm={confirmState.onConfirm} onCancel={() => setConfirmState({ open: false })} />
-
-      {/* DB CONNECTION GUARD */}
+      <ToastContainer toasts={toast.toasts} removeToast={toast.removeToast} />
       <DbConnectionGuard />
 
-      {/* HEADER */}
-      <header className="header">
-        <div className="header-left">
-          <button className="mode-toggle" onClick={() => setDrawerOpen(true)}><Menu size={22} /></button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <img src={logo} alt={APP_CONFIG.companyName} style={{ height: '32px', objectFit: 'contain' }} />
-            <h2 className="desktop-only" style={{ fontSize: '0.95rem', margin: 0, fontWeight: 700, color: 'var(--primary)' }}>
-              Comercio Exterior
-            </h2>
+      {/* Modal de confirmación de eliminación */}
+      {confirmDelete && (
+        <ConfirmModal
+          title="Confirmar eliminación"
+          message={`¿Estás seguro de eliminar "${confirmDelete.name}"? Esta acción no se puede deshacer.`}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
+      {/* ========== HEADER ========== */}
+      <header className="header glass">
+        <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+          <button className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            <Menu size={20} />
+          </button>
+          <div className="brand" onClick={() => setActiveTab('dashboard')} style={{cursor: 'pointer'}}>
+            <img src={logo} alt="Don Yeyo" className="logo" />
+            <div className="brand-text">
+              <h1>{APP_CONFIG.companyName}</h1>
+              <span>{APP_CONFIG.appName} v{APP_CONFIG.appVersion}</span>
+            </div>
           </div>
         </div>
 
-        <div className="header-right">
-          <div className="zoom-selector">
-            <button className={`zoom-btn ${uiZoom === 'sm' ? 'active' : ''}`} onClick={() => setUiZoom('sm')} title="Texto chico">A</button>
-            <button className={`zoom-btn ${uiZoom === 'md' ? 'active' : ''}`} onClick={() => setUiZoom('md')} title="Texto mediano" style={{fontSize: '0.8rem'}}>A</button>
-            <button className={`zoom-btn ${uiZoom === 'lg' ? 'active' : ''}`} onClick={() => setUiZoom('lg')} title="Texto grande" style={{fontSize: '0.95rem'}}>A</button>
-          </div>
+        <div className="search-bar">
+          <Search size={16} style={{color: 'var(--text-muted)'}} />
+          <input
+            type="text"
+            placeholder="Buscar contactos, operaciones, visitas..."
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+          />
+          {globalSearch && (
+            <button className="icon-btn" onClick={() => setGlobalSearch('')} style={{padding: 2}}>
+              <X size={14} />
+            </button>
+          )}
+        </div>
 
-          <button 
-            className={`header-alert-btn ${unviewedAlertsCount > 0 ? 'has-unread' : ''}`}
-            onClick={handleHeaderBellClick}
-            title={unviewedAlertsCount > 0 ? `${unviewedAlertsCount} alertas sin visualizar` : 'Ver alertas (sin pendientes)'}
-          >
-            <Bell size={18} />
-            {unviewedAlertsCount > 0 && (
-              <span className="header-alert-badge">{unviewedAlertsCount}</span>
-            )}
-          </button>
-
-          <button className="mode-toggle" onClick={toggleTheme} title="Cambiar modo">
+        <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+          <button className="theme-toggle" onClick={toggleTheme} title="Cambiar tema">
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
-
-          <div className="avatar-container" onClick={() => setShowUserMenu(!showUserMenu)} style={{ position: 'relative' }}>
-            <span className="user-name desktop-only">{user.name}</span>
-            <div className="avatar">{initials || <User size={18} />}</div>
-            {showUserMenu && (
-              <div className="glass" style={{ position: 'absolute', top: '100%', right: 0, marginTop: '6px', minWidth: '180px', borderRadius: '10px', overflow: 'hidden', zIndex: 150, textAlign: 'left' }}>
-                <button onClick={logout} style={{ width: '100%', padding: '10px 14px', borderRadius: 0, justifyContent: 'flex-start', color: 'var(--error)', background: 'transparent', fontSize: '0.85rem', border: 'none', textAlign: 'left', cursor: 'pointer' }}>
-                  Cerrar sesión ({user.email || user.name})
-                </button>
-              </div>
-            )}
+          <div className="user-profile">
+            <div className="user-avatar">{account?.name?.[0] || 'U'}</div>
+            <div className="user-info">
+              <span className="user-name">{account?.name || APP_CONFIG.defaultUserName}</span>
+              <span className="user-role">{account?.username || APP_CONFIG.defaultUserEmail}</span>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* DRAWER */}
-      <div className={`drawer-overlay ${isDrawerOpen ? 'open' : ''}`} onClick={() => setDrawerOpen(false)} />
-      <div className={`drawer ${isDrawerOpen ? 'open' : ''} glass`}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '1.1rem', color: 'var(--drawer-title)', fontWeight: 700 }}>Menú</h2>
-          <button className="mode-toggle" onClick={() => setDrawerOpen(false)}><X size={22} /></button>
+      {/* ========== BODY WITH SIDEBAR AND MAIN CONTENT ========== */}
+      <div className="app-body">
+        {/* ========== SIDEBAR / NAVIGATION ========== */}
+      <nav className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="nav-group">
+          <div className="nav-label">PRINCIPAL</div>
+          <button className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false); }}>
+            <LayoutDashboard size={18} /> Dashboard
+          </button>
+          <button className={`nav-item ${activeTab === 'tareas' ? 'active' : ''}`} onClick={() => { setActiveTab('tareas'); setSidebarOpen(false); }}>
+            <CheckSquare size={18} /> Tareas
+          </button>
+          <button className={`nav-item ${activeTab === 'agenda' ? 'active' : ''}`} onClick={() => { setActiveTab('agenda'); setSidebarOpen(false); }}>
+            <CalendarIcon size={18} /> Agenda / Calendario
+          </button>
         </div>
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto', flex: 1 }}>
-          {menuItems.map(item => (
-            <button key={item.key} className={`drawer-menu-btn ${activeTab === item.key ? 'active' : ''}`} onClick={() => { setActiveTab(item.key); setDrawerOpen(false); }}>
-              <span>{item.icon}</span>
-              {item.label}
-              {item.badge > 0 && <span className={`badge ${item.badgeColor || 'badge-red'}`} style={{ marginLeft: 'auto' }}>{item.badge}</span>}
-            </button>
-          ))}
-        </nav>
-        <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--drawer-footer)', fontWeight: 700 }}>{APP_CONFIG.companyName}</p>
-          <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>v{APP_CONFIG.appVersion}</p>
-        </div>
-      </div>
 
-      {/* CONTENIDO */}
-      <main className="content">
+        <div className="nav-group">
+          <div className="nav-label">GESTIÓN COMERCIAL</div>
+          <button className={`nav-item ${activeTab === 'contactos' ? 'active' : ''}`} onClick={() => { setActiveTab('contactos'); setSidebarOpen(false); }}>
+            <Users size={18} /> Contactos
+          </button>
+          <button className={`nav-item ${activeTab === 'visitas' ? 'active' : ''}`} onClick={() => { setActiveTab('visitas'); setSidebarOpen(false); }}>
+            <Calendar size={18} /> Visitas y reuniones
+          </button>
+          <button className={`nav-item ${activeTab === 'oportunidades' ? 'active' : ''}`} onClick={() => { setActiveTab('oportunidades'); setSidebarOpen(false); }}>
+            <Briefcase size={18} /> Oportunidades
+          </button>
+          <button className={`nav-item ${activeTab === 'operaciones' ? 'active' : ''}`} onClick={() => { setActiveTab('operaciones'); setSidebarOpen(false); }}>
+            <ShoppingBag size={18} /> Operaciones
+          </button>
+          <button className={`nav-item ${activeTab === 'muestras' ? 'active' : ''}`} onClick={() => { setActiveTab('muestras'); setSidebarOpen(false); }}>
+            <Package size={18} /> Muestras y com.
+          </button>
+        </div>
+
+        <div className="nav-group">
+          <div className="nav-label">INTELIGENCIA & MERCADOS</div>
+          <button className={`nav-item ${activeTab === 'paises' ? 'active' : ''}`} onClick={() => { setActiveTab('paises'); setSidebarOpen(false); }}>
+            <Globe size={18} /> Países destino
+          </button>
+          <button className={`nav-item ${activeTab === 'inteligencia' ? 'active' : ''}`} onClick={() => { setActiveTab('inteligencia'); setSidebarOpen(false); }}>
+            <TrendingUp size={18} /> Inteligencia comercial
+          </button>
+          <button className={`nav-item ${activeTab === 'cobranzas' ? 'active' : ''}`} onClick={() => { setActiveTab('cobranzas'); setSidebarOpen(false); }}>
+            <DollarSign size={18} /> Cobranzas
+          </button>
+          <button className={`nav-item ${activeTab === 'calculadora' ? 'active' : ''}`} onClick={() => { setActiveTab('calculadora'); setSidebarOpen(false); }}>
+            <Calculator size={18} /> Calculadora Landed
+          </button>
+        </div>
+      </nav>
+
+      {/* ========== CONTENIDO PRINCIPAL ========== */}
+      <main className="main-content">
+        {loading && (
+          <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 40}}>
+            <RefreshCw className="spin" size={32} style={{color: 'var(--primary)'}} />
+          </div>
+        )}
 
         {/* ===== DASHBOARD ===== */}
-        {activeTab === 'dashboard' && (
+        {!loading && activeTab === 'dashboard' && (
           <div>
-            <div className="section-header"><h3><LayoutDashboard size={20} /> Dashboard</h3></div>
-            <div className="metrics-grid">
-              <div className="metric-card"><div className="metric-header">Países activos</div><div className="metric-value">{paises.length}</div><div className="metric-footer">exportando actualmente</div></div>
-              <div className="metric-card"><div className="metric-header">Contactos</div><div className="metric-value">{contactos.length}</div><div className="metric-footer">importadores y distribuidores</div></div>
-              <div className="metric-card"><div className="metric-header">Pipeline USD</div><div className="metric-value">${pipeline.toLocaleString('es-AR')}</div><div className="metric-footer">oportunidades abiertas</div></div>
-              <div className="metric-card"><div className="metric-header">Tareas vencidas</div><div className="metric-value" style={{color: 'var(--danger)'}}>{tareasVencidas.length}</div><div className="metric-footer">requieren atención</div></div>
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-icon bg-blue"><Users size={20} /></div>
+                <div className="stat-details">
+                  <span className="stat-label">Clientes / Contactos Activos</span>
+                  <span className="stat-value">{activeContactsCount}</span>
+                </div>
+              </div>
+
+              <div className="stat-card">
+                <div className="stat-icon bg-amber"><CheckSquare size={20} /></div>
+                <div className="stat-details">
+                  <span className="stat-label">Tareas Pendientes</span>
+                  <span className="stat-value">{pendingTasksCount}</span>
+                </div>
+              </div>
+
+              <div className="stat-card">
+                <div className="stat-icon bg-emerald"><ShoppingBag size={20} /></div>
+                <div className="stat-details">
+                  <span className="stat-label">Operaciones en Curso</span>
+                  <span className="stat-value">{activeOpsCount}</span>
+                </div>
+              </div>
+
+              <div className="stat-card">
+                <div className="stat-icon bg-purple"><DollarSign size={20} /></div>
+                <div className="stat-details">
+                  <span className="stat-label">Valor Total Operaciones</span>
+                  <span className="stat-value">${totalOpsUSD.toLocaleString()} USD</span>
+                </div>
+              </div>
             </div>
 
-            {/* Volumen exportación anual */}
-            <div className="card">
-              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14}}>
-                <h3 style={{margin: 0, display: 'flex', alignItems: 'center', gap: 8}}><Boxes size={18} /> Volumen de exportación anual</h3>
-                <select className="form-input" style={{width: 130, fontSize: '0.8rem', padding: '6px 10px'}} value={dashYearFilter} onChange={e => setDashYearFilter(e.target.value)}>
-                  <option value="">Este año</option>
-                  <option value="all">Todo</option>
-                </select>
-              </div>
-              <div className="metrics-grid" style={{marginBottom: 16}}>
-                <div className="metric-card" style={{background: 'var(--primary-light)'}}><div className="metric-header" style={{color: 'var(--header-text)'}}>Unidades exportadas</div><div className="metric-value" style={{fontSize: '1.4rem'}}>{dashCobranzas.reduce((s, c) => s + (parseInt(c.unidades) || 0), 0).toLocaleString('es-AR')}</div><div className="metric-footer">total del período</div></div>
-                <div className="metric-card" style={{background: 'var(--success-light)'}}><div className="metric-header" style={{color: 'var(--success)'}}>Valor exportado (USD)</div><div className="metric-value" style={{fontSize: '1.4rem'}}>${dashCobranzas.reduce((s, c) => s + (parseFloat(c.monto) || 0), 0).toLocaleString('es-AR')}</div><div className="metric-footer">operaciones cerradas</div></div>
-                <div className="metric-card" style={{background: 'var(--danger-light)'}}><div className="metric-header" style={{color: 'var(--danger)'}}>Cobranza vencida</div><div className="metric-value" style={{fontSize: '1.4rem', color: 'var(--danger)'}}>${cobranzaVencida.toLocaleString('es-AR')}</div><div className="metric-footer">requiere seguimiento</div></div>
-              </div>
-              <h4 style={{fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-muted)', margin: '16px 0 10px'}}>Desglose por país de destino</h4>
-              {paises.length === 0 ? <div className="empty-state" style={{padding: 16}}><div className="empty-state-icon"><Boxes size={24} /></div><div className="empty-state-text" style={{fontSize: '0.8rem'}}>Registrá exportaciones en Cobranzas para ver el desglose por país.</div></div> :
-                paises.map(p => {
-                  const totalPais = dashCobranzas.filter(c => c.pais_id === p.id).reduce((s, c) => s + parseFloat(c.monto || 0), 0);
-                  const unitsPais = dashCobranzas.filter(c => c.pais_id === p.id).reduce((s, c) => s + (parseInt(c.unidades) || 0), 0);
-                  const maxVal = Math.max(1, ...paises.map(pp => dashCobranzas.filter(c => c.pais_id === pp.id).reduce((s, c) => s + parseFloat(c.monto || 0), 0)));
-                  const pct = (totalPais / maxVal) * 100;
-                  return (
-                    <div key={p.id} style={{display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, padding: '6px 0', borderBottom: '1px solid var(--border)'}}>
-                      <span style={{fontSize: 18}}>{p.bandera}</span>
-                      <span style={{width: 100, fontWeight: 500, fontSize: '0.85rem'}}>{p.nombre}</span>
-                      <div style={{flex: 1}}><div className="progress-bar"><div className="progress-fill" style={{width: `${Math.min(100, pct)}%`}} /></div></div>
-                      <div style={{textAlign: 'right', minWidth: 120}}>
-                        <span style={{fontWeight: 600, fontSize: '0.85rem'}}>${totalPais.toLocaleString('es-AR')}</span>
-                        <div style={{fontSize: '0.7rem', color: 'var(--text-muted)'}}>{unitsPais.toLocaleString()} u</div>
+            <div className="grid-2-1" style={{marginTop: 20}}>
+              {/* Funnel Comercial / Ventas */}
+              <div className="card">
+                <div className="section-header">
+                  <h3><BarChart3 size={20} /> Funnel Comercial / Desarrollo de Clientes</h3>
+                  <span style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Basado en contactos calificados y en proceso</span>
+                </div>
+                <div style={{display: 'flex', flexDirection: 'column', gap: 14, padding: '10px 0'}}>
+                  {funnelEtapas.map((stage, i) => {
+                    const pct = Math.round((stage.count / maxFunnelCount) * 100);
+                    return (
+                      <div key={i} style={{display: 'flex', flexDirection: 'column', gap: 4}}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', fontWeight: 600}}>
+                          <span>{stage.name}</span>
+                          <span>{stage.count} contactos</span>
+                        </div>
+                        <div className="progress-bar" style={{height: 12}}>
+                          <div className="progress-fill" style={{width: `${pct}%`, background: stage.color}} />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-              }
-            </div>
-
-            {/* Alertas y Visitas */}
-            <div className="metrics-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', marginBottom: 20}}>
-              <div className="card" style={{margin: 0}}>
-                <h3 style={{display: 'flex', alignItems: 'center', gap: 8}}><Bell size={18} /> Alertas críticas</h3>
-                {alertas.length === 0 ? <div className="empty-state"><div className="empty-state-icon"><CheckSquare size={24} /></div><div className="empty-state-text">Sin alertas pendientes</div></div> :
-                  alertas.slice(0, 4).map((a, i) => <div key={i} style={{display: 'flex', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: '0.85rem'}}><span style={{marginTop: 2}}>{a.icono}</span><div style={{flex: 1}}><strong>{a.titulo}</strong><div style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{a.detalle}</div></div><span className={`badge ${a.color}`}>{a.dias < 0 ? `Vencido` : a.dias === 0 ? 'Hoy' : `${a.dias}d`}</span></div>)
-                }
+                    );
+                  })}
+                </div>
               </div>
-              <div className="card" style={{margin: 0}}>
-                <h3 style={{display: 'flex', alignItems: 'center', gap: 8}}><Calendar size={18} /> Próximas visitas</h3>
-                {visitas.filter(v => v.estado === 'Planificada').length === 0 ? <div className="empty-state"><div className="empty-state-icon"><Calendar size={24} /></div><div className="empty-state-text">Sin visitas programadas</div></div> :
-                  visitas.filter(v => v.estado === 'Planificada').slice(0, 4).map(v => <div key={v.id} style={{display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: '0.85rem'}}><div><strong>{v.titulo}</strong><div style={{fontSize: '0.7rem', color: 'var(--text-muted)'}}>{v.lugar}</div></div>{estadoBadge('Planificada')}</div>)
-                }
-              </div>
-            </div>
 
-            {/* Funnel */}
-            <div className="card">
-              <h3 style={{display: 'flex', alignItems: 'center', gap: 8}}><Target size={18} /> Funnel de oportunidades</h3>
-              <div className="funnel-container">
-                {['Prospecto', 'Contactado', 'Propuesta', 'Negociación', 'Cerrado'].map(stage => (
-                  <div key={stage} className="funnel-column">
-                    <div className="funnel-header">{stage}</div>
-                    {oportunidades.filter(o => o.etapa === stage).length === 0 ? <div style={{fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center', padding: 8}}>—</div> :
-                      oportunidades.filter(o => o.etapa === stage).map(o => <div key={o.id} className="funnel-card"><strong>{o.nombre}</strong><div style={{color: 'var(--primary)', fontWeight: 600, marginTop: 2, fontSize: '0.8rem'}}>${parseFloat(o.monto).toLocaleString()}</div></div>)
-                    }
+              {/* Tareas Pendientes Rápido */}
+              <div className="card">
+                <div className="section-header">
+                  <h3><CheckSquare size={20} /> Tareas urgentes</h3>
+                  <button className="btn btn-xs btn-outline" onClick={() => openNew('tarea')}>+ Nueva</button>
+                </div>
+                {tareas.filter(t => t.status === 'pendiente').length === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-state-icon"><CheckSquare size={24} /></div>
+                    <div className="empty-state-text">Sin tareas pendientes</div>
                   </div>
-                ))}
+                ) : (
+                  <div style={{display: 'flex', flexDirection: 'column', gap: 10}}>
+                    {tareas.filter(t => t.status === 'pendiente').slice(0, 5).map(t => (
+                      <div key={t.id} style={{display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--surface-hover)', borderRadius: 8}}>
+                        <input type="checkbox" checked={false} onChange={() => toggleTareaStatus(t)} style={{cursor: 'pointer'}} />
+                        <div style={{flex: 1, minWidth: 0}}>
+                          <div style={{fontSize: '0.85rem', fontWeight: 600, wordBreak: 'break-word'}}>{t.titulo}</div>
+                          <div style={{fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: 8, alignItems: 'center', marginTop: 2}}>
+                            {t.fecha && <span>📅 {fmtDate(t.fecha)} {fmtTime(t.hora)}</span>}
+                            {prioridadBadge(t.prioridad)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-
-            {/* Actividad reciente */}
-            <div className="card">
-              <h3 style={{display: 'flex', alignItems: 'center', gap: 8}}><Activity size={18} /> Actividad reciente</h3>
-              {[...visitas.slice(0, 3).map(v => ({icon: <Calendar size={14} />, text: `Visita: ${v.titulo} (${v.tipo})`})), ...contactos.slice(0, 3).map(c => ({icon: <User size={14} />, text: `Contacto: ${c.nombre} ${c.apellido || ''}`})), ...oportunidades.slice(0, 2).map(o => ({icon: <Briefcase size={14} />, text: `Oportunidad: ${o.nombre}`}))].map((a, i) =>
-                <div key={i} style={{display: 'flex', gap: 8, fontSize: '0.85rem', borderBottom: '1px solid var(--border)', padding: '6px 0', alignItems: 'center'}}><span style={{color: 'var(--text-muted)'}}>{a.icon}</span><span>{a.text}</span></div>
-              )}
-              {visitas.length === 0 && contactos.length === 0 && <div className="empty-state"><div className="empty-state-text">Sin actividad aún. Comenzá registrando un contacto o visita.</div></div>}
             </div>
           </div>
         )}
 
-        {/* ===== TAREAS ===== */}
-        {activeTab === 'tareas' && (
+        {/* ===== AGENDA Y CALENDARIO CENTRALIZADO ===== */}
+        {!loading && activeTab === 'agenda' && (
+          <div className="calendar-wrapper">
+            <div className="calendar-topbar">
+              <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+                <button className="icon-btn" onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1))}>
+                  <ChevronLeft size={18} />
+                </button>
+                <h2 style={{margin: 0, fontSize: '1.2rem'}}>
+                  {calendarDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' }).toUpperCase()}
+                </h2>
+                <button className="icon-btn" onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1))}>
+                  <ChevronRight size={18} />
+                </button>
+                <button className="btn btn-xs btn-outline" onClick={() => setCalendarDate(new Date())}>Hoy</button>
+              </div>
+
+              <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
+                <button className={`btn btn-xs ${calendarViewMode === 'grid' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setCalendarViewMode('grid')}>
+                  Grid Mes
+                </button>
+                <button className={`btn btn-xs ${calendarViewMode === 'timeline' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setCalendarViewMode('timeline')}>
+                  Lista Agenda
+                </button>
+              </div>
+            </div>
+
+            {/* Vista Grilla Mensual */}
+            {calendarViewMode === 'grid' && (
+              <div className="card" style={{padding: 12}}>
+                <div className="calendar-grid">
+                  {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(d => (
+                    <div key={d} className="calendar-day-head">{d}</div>
+                  ))}
+                  {calendarMonthDays.map((cell, i) => {
+                    const dayEvents = consolidatedEvents.filter(e => e.date === cell.dateStr);
+                    return (
+                      <div key={i} className={`calendar-day-cell ${!cell.isCurrentMonth ? 'other-month' : ''} ${cell.isToday ? 'is-today' : ''}`}>
+                        <div className="calendar-day-num">
+                          <span>{cell.day}</span>
+                          {dayEvents.length > 0 && (
+                            <span style={{fontSize: '0.65rem', background: 'var(--primary)', color: '#fff', padding: '1px 5px', borderRadius: 10}}>
+                              {dayEvents.length}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto', maxHeight: 80}}>
+                          {dayEvents.map(e => (
+                            <div key={e.id} className={`calendar-event-badge ${e.badgeClass}`} title={`${e.title} (${e.typeLabel})`}>
+                              <span>{e.time ? e.time : '•'}</span>
+                              <span style={{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{e.title}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Vista Timeline Agenda */}
+            {calendarViewMode === 'timeline' && (
+              <div className="card">
+                <div className="section-header">
+                  <h3><Clock3 size={20} /> Próximos compromisos y eventos agendados</h3>
+                </div>
+                {consolidatedEvents.length === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-state-icon"><CalendarIcon size={28} /></div>
+                    <div className="empty-state-text">No hay eventos ni tareas agendadas</div>
+                  </div>
+                ) : (
+                  <div className="agenda-timeline">
+                    {consolidatedEvents.map(e => (
+                      <div key={e.id} className="agenda-card">
+                        <div style={{textAlign: 'center', minWidth: 70, borderRight: '1px solid var(--border)', paddingRight: 12}}>
+                          <div style={{fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)'}}>{fmtDate(e.date)}</div>
+                          {e.time && <div style={{fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2}}>{e.time} hs</div>}
+                        </div>
+                        <div style={{flex: 1}}>
+                          <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
+                            <span className={`calendar-event-badge ${e.badgeClass}`}>{e.typeLabel}</span>
+                            <span style={{fontWeight: 600, fontSize: '0.9rem'}}>{e.title}</span>
+                          </div>
+                          {e.subtitle && <div style={{fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4}}>{e.subtitle}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== TAREAS ABM ===== */}
+        {!loading && activeTab === 'tareas' && (
           <div className="card">
-            <div className="section-header"><h3><CheckSquare size={20} /> Tareas</h3></div>
+            <div className="section-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
+              <h3><CheckSquare size={20} /> Gestión de Tareas y Pendientes</h3>
+              <button className="btn btn-primary btn-sm" onClick={() => openNew('tarea')}>
+                <Plus size={14} /> Nueva tarea
+              </button>
+            </div>
+
             <div className="filter-bar">
-              <select className="form-input" value={taskFilterStatus} onChange={e => setTaskFilterStatus(e.target.value)}>
-                <option value="">Todas</option>
+              <select className="form-input" value={tareaFilterStatus} onChange={e => setTareaFilterStatus(e.target.value)}>
+                <option value="">Todos los estados</option>
                 <option value="pendiente">Pendientes</option>
                 <option value="hecha">Completadas</option>
               </select>
-              <select className="form-input" value={taskFilterPrior} onChange={e => setTaskFilterPrior(e.target.value)}>
-                <option value="">Toda prioridad</option>
+              <select className="form-input" value={tareaFilterPrio} onChange={e => setTareaFilterPrio(e.target.value)}>
+                <option value="">Todas las prioridades</option>
                 <option value="alta">Alta</option>
                 <option value="media">Media</option>
                 <option value="baja">Baja</option>
               </select>
               <div className="filter-spacer" />
-              <button className="btn btn-primary btn-sm" onClick={() => openNew('tarea')}><Plus size={14} /> Nueva tarea</button>
+              <div style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>
+                Total: <strong>{filteredTareas.length}</strong> tareas ({tareas.filter(t => t.status === 'pendiente').length} pendientes)
+              </div>
             </div>
-            {filteredTareas.length === 0 ? <div className="empty-state"><div className="empty-state-icon"><CheckSquare size={28} /></div><div className="empty-state-text">Sin tareas pendientes</div></div> :
-              filteredTareas.map(t => {
-                const done = t.status === 'hecha';
-                const dias = t.fecha ? daysFrom(t.fecha) : null;
-                return (
-                  <div key={t.id} className="task-item">
-                    <input type="checkbox" checked={done} onChange={() => toggleTaskStatus(t)} style={{width: 16, height: 16, marginTop: 2, cursor: 'pointer'}} />
-                    <div style={{flex: 1}}>
-                      <div style={{fontWeight: 500, textDecoration: done ? 'line-through' : 'none', color: done ? 'var(--text-muted)' : 'var(--text)', fontSize: '0.85rem'}}>{t.titulo}</div>
-                      <div style={{display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap', alignItems: 'center'}}>
-                        {priorBadge(t.prioridad)}
-                        {t.fecha && <span style={{fontSize: '0.7rem', color: dias < 0 && !done ? 'var(--danger)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3}}>
-                          <Clock size={11} />
-                          {dias < 0 ? `Venció hace ${Math.abs(dias)}d` : `En ${dias}d · ${fmtDate(t.fecha)}`}
-                        </span>}
-                        {t.pais_nombre && <span style={{fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3}}><Globe size={11} /> {t.pais_nombre}</span>}
-                        {t.asignado && <span style={{fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3}}><User size={11} /> {t.asignado}</span>}
-                      </div>
-                      {t.notas && <div style={{fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 3}} dangerouslySetInnerHTML={{__html: t.notas}} />}
-                    </div>
-                    <button className="icon-btn" onClick={() => openEdit('tarea', t)} title="Editar"><Edit size={14} /></button>
-                    <button className="icon-btn" onClick={() => requestDelete('tareas', t.id, t.titulo)} title="Eliminar"><Trash2 size={14} /></button>
-                  </div>
-                );
-              })
-            }
-          </div>
-        )}
 
-        {/* ===== ALERTAS ===== */}
-        {activeTab === 'alertas' && (
-          <div className="card">
-            <div className="section-header"><h3><Bell size={20} /> Alertas</h3></div>
-            <p style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 16}}>Vencimientos próximos de documentos y compromisos registrados. Las alertas se generan automáticamente.</p>
-            {alertas.length === 0 ? <div className="empty-state"><div className="empty-state-icon"><CheckSquare size={28} /></div><div className="empty-state-text">Sin alertas activas. Todo al día.</div></div> :
-              alertas.map((a, i) => (
-                <div key={i} style={{display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: 6, background: 'var(--surface)', border: '1px solid var(--border)'}}>
-                  <span style={{marginTop: 2}}>{a.icono}</span>
-                  <div style={{flex: 1}}><div style={{fontWeight: 500}}>{a.titulo}</div><div style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>{a.detalle}</div></div>
-                  <span className={`badge ${a.color}`}>{a.dias < 0 ? `Vencido hace ${Math.abs(a.dias)}d` : a.dias === 0 ? 'Hoy' : `En ${a.dias}d`}</span>
-                </div>
-              ))
-            }
+            {filteredTareas.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon"><CheckSquare size={32} /></div>
+                <div className="empty-state-text">No hay tareas que coincidan con los filtros</div>
+              </div>
+            ) : (
+              <div style={{display: 'flex', flexDirection: 'column', gap: 10}}>
+                {filteredTareas.map(t => (
+                  <div key={t.id} className="task-item" style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 12,
+                    padding: '14px 16px',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    opacity: t.status === 'hecha' ? 0.65 : 1,
+                    transition: 'all 0.15s ease'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={t.status === 'hecha'}
+                      onChange={() => toggleTareaStatus(t)}
+                      style={{cursor: 'pointer', width: 18, height: 18, marginTop: 3, accentColor: 'var(--dy-blue)'}}
+                      title={t.status === 'hecha' ? 'Marcar como pendiente' : 'Marcar como completada'}
+                    />
+                    <div style={{flex: 1, minWidth: 0}}>
+                      <div style={{
+                        fontSize: '0.95rem',
+                        fontWeight: 600,
+                        textDecoration: t.status === 'hecha' ? 'line-through' : 'none',
+                        color: t.status === 'hecha' ? 'var(--text-muted)' : 'var(--text)'
+                      }}>
+                        {t.titulo}
+                      </div>
+                      <div style={{fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', gap: 12, alignItems: 'center', marginTop: 6, flexWrap: 'wrap'}}>
+                        {t.fecha && (
+                          <span style={{color: 'var(--primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4}}>
+                            <CalendarIcon size={12} /> {fmtDate(t.fecha)} {fmtTime(t.hora)}
+                          </span>
+                        )}
+                        {prioridadBadge(t.prioridad)}
+                        {t.pais_nombre && <span>📍 {t.pais_nombre}</span>}
+                        {t.asignado && <span>👤 {t.asignado}</span>}
+                      </div>
+                      {t.notas && (
+                        <div style={{fontSize: '0.8rem', marginTop: 6, color: 'var(--text-muted)'}} dangerouslySetInnerHTML={{__html: t.notas}} />
+                      )}
+                    </div>
+                    <div style={{display: 'flex', gap: 6, alignItems: 'center'}}>
+                      <button className="icon-btn" onClick={() => openEdit('tarea', t)} title="Editar"><Edit size={14} /></button>
+                      <button className="icon-btn" onClick={() => requestDelete('tareas', t.id, t.titulo)} title="Eliminar"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {/* ===== CONTACTOS ===== */}
-        {activeTab === 'contactos' && (
+        {!loading && activeTab === 'contactos' && (
           <div className="card">
-            <div className="section-header"><h3><Users size={20} /> Contactos</h3></div>
+            <div className="section-header">
+              <h3><Users size={20} /> Base de Contactos y Clientes</h3>
+            </div>
+
             <div className="filter-bar">
-              <input type="text" className="form-input search-input" placeholder="Buscar contacto..." value={contactSearch} onChange={e => setContactSearch(e.target.value)} />
-              <select className="form-input" value={contactFilterPais} onChange={e => setContactFilterPais(e.target.value)}>
-                <option value="">Todos los países</option>
-                {paisesUnicos.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <select className="form-input" value={contactFilterRol} onChange={e => setContactFilterRol(e.target.value)}>
-                <option value="">Todos los roles</option>
-                <option>Importador</option><option>Distribuidor</option><option>Broker</option><option>Retailer</option><option>Otro</option>
+              <select className="form-input" value={contactoFilterEstado} onChange={e => setContactoFilterEstado(e.target.value)}>
+                <option value="">Todos los estados</option>
+                <option>Activo</option>
+                <option>En proceso</option>
+                <option>Prospecto</option>
+                <option>Inactivo</option>
+                <option>Descartado</option>
               </select>
               <div className="filter-spacer" />
-              <button className="btn btn-secondary btn-sm" onClick={syncFinnegansClientes} disabled={loadingSync}><RefreshCw size={14} /> {loadingSync ? 'Sync...' : 'Sync ERP'}</button>
-              <button className="btn btn-primary btn-sm" onClick={() => openNew('contacto')}><Plus size={14} /> Nuevo</button>
+              <button className="btn btn-primary btn-sm" onClick={() => openNew('contacto')}><Plus size={14} /> Nuevo contacto</button>
             </div>
+
             <div className="table-container">
               <table>
-                <thead><tr><th>Nombre</th><th>Empresa</th><th>País</th><th>Rol</th><th>Estado</th><th>Email</th><th></th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Nombre / Empresa</th>
+                    <th>Rol</th>
+                    <th>País / Ciudad</th>
+                    <th>Contacto</th>
+                    <th>Estado / Etapa</th>
+                    <th>Próxima Acción</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {filteredContactos.length === 0 ? <tr><td colSpan="7"><div className="empty-state"><div className="empty-state-icon"><Users size={28} /></div><div className="empty-state-text">Sin contactos. Agregá el primero.</div></div></td></tr> :
+                  {filteredContactos.length === 0 ? (
+                    <tr><td colSpan="7"><div className="empty-state"><div className="empty-state-icon"><Users size={28} /></div><div className="empty-state-text">No hay contactos cargados</div></div></td></tr>
+                  ) : (
                     filteredContactos.map(c => (
                       <tr key={c.id}>
-                        <td><strong>{c.nombre} {c.apellido || ''}</strong></td>
-                        <td>{c.empresa || '—'}</td>
-                        <td>{c.pais_nombre || '—'}</td>
-                        <td><span className="badge badge-navy">{c.rol}</span></td>
-                        <td>{estadoBadge(c.estado)}</td>
-                        <td style={{color: 'var(--text-muted)'}}>{c.email || '—'}</td>
-                        <td><button className="icon-btn" onClick={() => openEdit('contacto', c)}><Edit size={14} /></button> <button className="icon-btn" onClick={() => requestDelete('contactos', c.id, `${c.nombre} ${c.apellido || ''}`)}><Trash2 size={14} /></button></td>
+                        <td>
+                          <strong>{c.nombre} {c.apellido || ''}</strong>
+                          {c.empresa && <div style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{c.empresa}</div>}
+                        </td>
+                        <td><span className="badge badge-navy">{c.rol || 'Otro'}</span></td>
+                        <td>{c.pais_nombre || '—'} {c.ciudad ? `(${c.ciudad})` : ''}</td>
+                        <td style={{fontSize: '0.8rem'}}>
+                          {c.email && <div>✉️ {c.email}</div>}
+                          {c.telefono && <div>📞 {c.telefono}</div>}
+                        </td>
+                        <td>
+                          {estadoBadge(c.estado)}
+                          {c.estado === 'En proceso' && c.etapa_comercial && (
+                            <div style={{marginTop: 4}}>{etapaBadge(c.etapa_comercial)}</div>
+                          )}
+                        </td>
+                        <td style={{fontSize: '0.78rem'}}>
+                          {c.proxima_accion ? (
+                            <div>
+                              <div>{c.proxima_accion}</div>
+                              {c.proxima_accion_fecha && (
+                                <div style={{color: 'var(--primary)', fontWeight: 600, marginTop: 2}}>
+                                  📅 {fmtDate(c.proxima_accion_fecha)} {fmtTime(c.proxima_accion_hora)}
+                                </div>
+                              )}
+                            </div>
+                          ) : '—'}
+                        </td>
+                        <td>
+                          <button className="icon-btn" onClick={() => openEdit('contacto', c)} title="Editar"><Edit size={14} /></button>
+                          <button className="icon-btn" onClick={() => requestDelete('contactos', c.id, c.nombre)} title="Eliminar"><Trash2 size={14} /></button>
+                        </td>
                       </tr>
                     ))
-                  }
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
-        {/* ===== VISITAS ===== */}
-        {activeTab === 'visitas' && (
+        {/* ===== VISITAS Y REUNIONES ===== */}
+        {!loading && activeTab === 'visitas' && (
           <div className="card">
-            <div className="section-header"><h3><Calendar size={20} /> Visitas y reuniones</h3></div>
+            <div className="section-header">
+              <h3><Calendar size={20} /> Visitas, Ferias y Reuniones Comercial</h3>
+            </div>
+
             <div className="filter-bar">
               <select className="form-input" value={visitaFilterTipo} onChange={e => setVisitaFilterTipo(e.target.value)}>
                 <option value="">Todos los tipos</option>
-                <option>Feria internacional</option><option>Ronda de negocios</option><option>Reunión comercial</option><option>Visita a cliente</option><option>Videoconferencia</option>
-              </select>
-              <select className="form-input" value={visitaFilterEstado} onChange={e => setVisitaFilterEstado(e.target.value)}>
-                <option value="">Todos los estados</option>
-                <option>Planificada</option><option>Realizada</option><option>Cancelada</option>
+                <option>Feria internacional</option>
+                <option>Ronda de negocios</option>
+                <option>Reunión comercial</option>
+                <option>Visita a cliente</option>
+                <option>Videoconferencia</option>
               </select>
               <div className="filter-spacer" />
-              <button className="btn btn-primary btn-sm" onClick={() => openNew('visita')}><Plus size={14} /> Nueva visita</button>
+              <button className="btn btn-primary btn-sm" onClick={() => openNew('visita')}><Plus size={14} /> Registrar reunión</button>
             </div>
-            {filteredVisitas.length === 0 ? <div className="empty-state"><div className="empty-state-icon"><Calendar size={28} /></div><div className="empty-state-text">Sin visitas. Registrá una feria o reunión.</div></div> :
-              filteredVisitas.map(v => (
-                <div key={v.id} style={{display: 'flex', gap: 14, padding: '12px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', marginBottom: 6}}>
-                  <div style={{minWidth: 80, fontSize: '0.75rem', color: 'var(--text-muted)'}}>{fmtDate(v.fecha)}<br/><span style={{fontSize: '0.7rem'}}>{v.lugar || ''}</span></div>
-                  <div style={{flex: 1}}>
-                    <div style={{fontWeight: 500, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 6}}>{visitaIcon(v.tipo)} {v.titulo}</div>
-                    <div style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{v.tipo} {v.contactos ? `· ${v.contactos}` : ''}</div>
-                    {v.tipo === 'Ronda de negocios' && (v.ronda_org || v.ronda_reuniones) && (
-                      <div style={{background: 'var(--primary-light)', borderRadius: 4, padding: '6px 10px', fontSize: '0.75rem', marginTop: 4, marginBottom: 4, display: 'flex', gap: 12, flexWrap: 'wrap'}}>
-                        {v.ronda_org && <span><b>Org:</b> {v.ronda_org}</span>}
-                        {v.ronda_reuniones && <span><b>Reuniones:</b> {v.ronda_reuniones}</span>}
-                        {v.ronda_pedidos && <span><b>Pedidos:</b> ${parseFloat(v.ronda_pedidos).toLocaleString()}</span>}
-                        {v.ronda_resultado && <span><b>Resultado:</b> {v.ronda_resultado}</span>}
-                      </div>
-                    )}
-                    {v.notas && <div style={{fontSize: '0.75rem', color: 'var(--text)', background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', marginTop: 4}} dangerouslySetInnerHTML={{__html: v.notas}} />}
-                    {v.proximo && <div style={{fontSize: '0.75rem', color: 'var(--dy-blue)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4}}><ArrowRight size={12} /> {v.proximo}</div>}
-                  </div>
-                  <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4}}>
-                    {estadoBadge(v.estado)}
-                    {v.tipo === 'Ronda de negocios' && <span className="badge badge-blue"><Handshake size={10} /> Ronda</span>}
-                    <div style={{display: 'flex', gap: 4}}>
-                      <button className="icon-btn" onClick={() => openEdit('visita', v)}><Edit size={14} /></button>
-                      <button className="icon-btn" onClick={() => requestDelete('visitas', v.id, v.titulo)}><Trash2 size={14} /></button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            }
+
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Evento / Reunión</th>
+                    <th>Tipo</th>
+                    <th>Fecha / Hora</th>
+                    <th>Lugar</th>
+                    <th>Contactos / Calificados</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredVisitas.length === 0 ? (
+                    <tr><td colSpan="7"><div className="empty-state"><div className="empty-state-icon"><Calendar size={28} /></div><div className="empty-state-text">Sin visitas o reuniones registradas</div></div></td></tr>
+                  ) : (
+                    filteredVisitas.map(v => (
+                      <tr key={v.id}>
+                        <td>
+                          <strong>{v.titulo}</strong>
+                          {v.contacto_nombre && <div style={{fontSize: '0.72rem', color: 'var(--text-muted)'}}>Cliente: {v.contacto_nombre}</div>}
+                        </td>
+                        <td><span className="badge badge-navy">{v.tipo}</span></td>
+                        <td style={{fontSize: '0.8rem'}}>
+                          📅 {fmtDate(v.fecha)} {v.fecha_fin ? ` a ${fmtDate(v.fecha_fin)}` : ''}
+                          {v.hora && <div style={{color: 'var(--primary)', fontWeight: 600}}>{fmtTime(v.hora)}</div>}
+                        </td>
+                        <td style={{fontSize: '0.8rem'}}>{v.lugar || '—'}</td>
+                        <td style={{fontSize: '0.8rem'}}>
+                          {v.contactos || '—'}
+                          {v.ronda_importadores > 0 && (
+                            <div style={{fontSize: '0.72rem', color: 'var(--success)', fontWeight: 600}}>
+                              {v.ronda_importadores} Contactos calificados
+                            </div>
+                          )}
+                        </td>
+                        <td>{estadoBadge(v.estado)}</td>
+                        <td>
+                          <button className="icon-btn" onClick={() => openEdit('visita', v)}><Edit size={14} /></button>
+                          <button className="icon-btn" onClick={() => requestDelete('visitas', v.id, v.titulo)}><Trash2 size={14} /></button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {/* ===== OPORTUNIDADES ===== */}
-        {activeTab === 'oportunidades' && (
+        {!loading && activeTab === 'oportunidades' && (
           <div className="card">
-            <div className="section-header"><h3><Briefcase size={20} /> Oportunidades</h3></div>
+            <div className="section-header">
+              <h3><Briefcase size={20} /> Oportunidades Comerciales</h3>
+            </div>
+
             <div className="filter-bar">
-              <select className="form-input" value={opFilterEtapa} onChange={e => setOpFilterEtapa(e.target.value)}>
+              <select className="form-input" value={oportunidadFilterEtapa} onChange={e => setOportunidadFilterEtapa(e.target.value)}>
                 <option value="">Todas las etapas</option>
-                <option>Prospecto</option><option>Contactado</option><option>Propuesta</option><option>Negociación</option><option>Cerrado</option><option>Perdido</option>
-              </select>
-              <select className="form-input" value={opFilterMarca} onChange={e => setOpFilterMarca(e.target.value)}>
-                <option value="">Todas las marcas</option>
-                <option>Don Yeyo</option><option>DeViano</option>
+                <option>En análisis</option>
+                <option>En proceso</option>
+                <option>Finalizado</option>
+                <option>Descartado</option>
               </select>
               <div className="filter-spacer" />
               <button className="btn btn-primary btn-sm" onClick={() => openNew('oportunidad')}><Plus size={14} /> Nueva oportunidad</button>
             </div>
+
             <div className="table-container">
               <table>
-                <thead><tr><th>Oportunidad</th><th>País</th><th>Marca</th><th>Etapa</th><th>Monto USD</th><th>Probabilidad</th><th>Cierre estimado</th><th></th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Oportunidad / Cliente</th>
+                    <th>País</th>
+                    <th>Marca</th>
+                    <th>Etapa</th>
+                    <th>Inversión Necesaria (USD)</th>
+                    <th>Responsable</th>
+                    <th>Cierre Estimado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {filteredOportunidades.length === 0 ? <tr><td colSpan="8"><div className="empty-state"><div className="empty-state-icon"><Briefcase size={28} /></div><div className="empty-state-text">Sin oportunidades registradas.</div></div></td></tr> :
+                  {filteredOportunidades.length === 0 ? (
+                    <tr><td colSpan="8"><div className="empty-state"><div className="empty-state-icon"><Briefcase size={28} /></div><div className="empty-state-text">Sin oportunidades registradas</div></div></td></tr>
+                  ) : (
                     filteredOportunidades.map(o => (
                       <tr key={o.id}>
-                        <td><strong>{o.nombre}</strong></td>
-                        <td>{o.pais_nombre || '—'}</td>
-                        <td><span className="badge badge-navy">{o.marca || '—'}</span></td>
+                        <td>
+                          <strong>{o.nombre}</strong>
+                          {o.contacto_nombre && <div style={{fontSize: '0.72rem', color: 'var(--text-muted)'}}>{o.contacto_nombre}</div>}
+                        </td>
+                        <td>{o.pais_bandera || ''} {o.pais_nombre || '—'}</td>
+                        <td><span className="badge badge-navy">{o.marca === 'Otro' ? (o.marca_otra || 'Otro') : o.marca}</span></td>
                         <td>{etapaBadge(o.etapa)}</td>
                         <td style={{fontWeight: 600}}>${parseFloat(o.monto || 0).toLocaleString()}</td>
+                        <td style={{fontSize: '0.8rem'}}>{o.responsable || '—'}</td>
+                        <td style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>{fmtDate(o.cierre)}</td>
                         <td>
-                          <div style={{display: 'flex', alignItems: 'center', gap: 6, minWidth: 80}}>
-                            <div className="progress-bar" style={{flex: 1}}><div className="progress-fill" style={{width: `${o.prob || 0}%`}} /></div>
-                            <span style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{o.prob || 0}%</span>
-                          </div>
+                          <button className="icon-btn" onClick={() => openEdit('oportunidad', o)}><Edit size={14} /></button>
+                          <button className="icon-btn" onClick={() => requestDelete('oportunidades', o.id, o.nombre)}><Trash2 size={14} /></button>
                         </td>
-                        <td style={{color: 'var(--text-muted)', fontSize: '0.8rem'}}>{fmtDate(o.cierre)}</td>
-                        <td><button className="icon-btn" onClick={() => openEdit('oportunidad', o)}><Edit size={14} /></button> <button className="icon-btn" onClick={() => requestDelete('oportunidades', o.id, o.nombre)}><Trash2 size={14} /></button></td>
                       </tr>
                     ))
-                  }
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
-        {/* ===== MUESTRAS + COMUNICACIONES ===== */}
-        {activeTab === 'muestras' && (
+        {/* ===== OPERACIONES (NUEVO MÓDULO) ===== */}
+        {!loading && activeTab === 'operaciones' && (
           <div className="card">
-            <div className="section-header"><h3><Package size={20} /> Muestras y comunicaciones</h3></div>
+            <div className="section-header">
+              <h3><ShoppingBag size={20} /> Operaciones y Pedidos de Exportación</h3>
+            </div>
+
+            <div className="filter-bar">
+              <select className="form-input" value={operacionFilterEstado} onChange={e => setOperacionFilterEstado(e.target.value)}>
+                <option value="">Todos los estados</option>
+                <option>Pedido recibido</option>
+                <option>En proceso</option>
+                <option>Despachado</option>
+              </select>
+              <div className="filter-spacer" />
+              <button className="btn btn-primary btn-sm" onClick={() => openNew('operacion')}><Plus size={14} /> Registrar operación</button>
+            </div>
+
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nº Pedido</th>
+                    <th>Cliente / Empresa</th>
+                    <th>País Destino</th>
+                    <th>Estado</th>
+                    <th>Entrega Programada</th>
+                    <th>Unidades / Kg</th>
+                    <th>Valor USD</th>
+                    <th>Incoterm</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOperaciones.length === 0 ? (
+                    <tr><td colSpan="9"><div className="empty-state"><div className="empty-state-icon"><ShoppingBag size={28} /></div><div className="empty-state-text">Sin operaciones registradas</div></div></td></tr>
+                  ) : (
+                    filteredOperaciones.map(op => (
+                      <tr key={op.id}>
+                        <td><strong>Nº {op.numero_pedido}</strong></td>
+                        <td>
+                          <strong>{op.cliente_nombre || 'Cliente sin asignar'}</strong>
+                          {op.cliente_empresa && <div style={{fontSize: '0.72rem', color: 'var(--text-muted)'}}>{op.cliente_empresa}</div>}
+                        </td>
+                        <td>{op.pais_bandera || ''} {op.pais_nombre || '—'}</td>
+                        <td>{estadoBadge(op.estado)}</td>
+                        <td style={{fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)'}}>
+                          📅 {fmtDate(op.fecha_entrega)}
+                        </td>
+                        <td style={{fontSize: '0.8rem'}}>
+                          <div>{op.unidades ? `${op.unidades} u.` : '—'}</div>
+                          {op.kilogramos > 0 && <div style={{fontSize: '0.72rem', color: 'var(--text-muted)'}}>{op.kilogramos} kg</div>}
+                        </td>
+                        <td style={{fontWeight: 600}}>${parseFloat(op.valor_usd || 0).toLocaleString()}</td>
+                        <td><span className="badge badge-navy">{op.incoterm || 'FOB'}</span></td>
+                        <td>
+                          <button className="icon-btn" onClick={() => openEdit('operacion', op)}><Edit size={14} /></button>
+                          <button className="icon-btn" onClick={() => requestDelete('operaciones', op.id, `Pedido ${op.numero_pedido}`)}><Trash2 size={14} /></button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ===== MUESTRAS Y COMUNICACIONES ===== */}
+        {!loading && activeTab === 'muestras' && (
+          <div className="card">
+            <div className="section-header"><h3><Package size={20} /> Muestras y Comunicaciones</h3></div>
             <div className="tabs">
               <button className={`tab-btn ${subTab === 'muestras' ? 'active' : ''}`} onClick={() => setSubTab('muestras')}><Send size={14} /> Muestras enviadas</button>
               <button className={`tab-btn ${subTab === 'comunicaciones' ? 'active' : ''}`} onClick={() => setSubTab('comunicaciones')}><MessageCircle size={14} /> Log de comunicaciones</button>
@@ -1140,7 +1422,6 @@ export default function App() {
               </div>
               {filteredMuestras.length === 0 ? <div className="empty-state"><div className="empty-state-icon"><Package size={28} /></div><div className="empty-state-text">Sin muestras registradas</div></div> :
                 filteredMuestras.map(m => {
-                  // Parsear productos: JSON array de objetos o strings (retrocompatible)
                   let prods = [];
                   try {
                     const parsed = JSON.parse(m.producto);
@@ -1150,15 +1431,15 @@ export default function App() {
                   } catch { prods = [{ nombre: String(m.producto) }]; }
 
                   const sampleTitle = [
-                    m.destinatario,
+                    m.destinatario || m.contacto_nombre,
                     m.pais_nombre,
                     fmtDate(m.fecha)
                   ].filter(Boolean).join(' · ') || 'Muestra sin destinatario';
 
                   return (
                     <div key={m.id} className="sample-row">
-                      <div className="sample-row-main" style={{flex: 1, minWidth: 0, wordBreak: 'break-word', overflowWrap: 'anywhere'}}>
-                        <div style={{fontWeight: 600, fontSize: '0.9rem', lineHeight: 1.35, wordBreak: 'break-word', color: 'var(--text)'}}>
+                      <div className="sample-row-main" style={{flex: 1, minWidth: 0}}>
+                        <div style={{fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)'}}>
                           {sampleTitle}
                         </div>
                         <div className="product-tags" style={{marginTop: 6}}>
@@ -1170,22 +1451,16 @@ export default function App() {
                             </span>
                           ))}
                         </div>
-                        {m.notas && <div style={{fontSize: '0.75rem', marginTop: 4, wordBreak: 'break-word', color: 'var(--text-muted)'}} dangerouslySetInnerHTML={{__html: m.notas}} />}
                       </div>
-                      <div className="sample-row-side" style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0}}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
-                          {estadoBadge(m.resultado)}
-                          {m.costo > 0 && <span style={{fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600}}>${parseFloat(m.costo).toLocaleString()}</span>}
-                        </div>
+                      <div className="sample-row-side" style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6}}>
+                        {estadoBadge(m.resultado)}
                         <div style={{display: 'flex', gap: 4}}>
-                          <button className="icon-btn" onClick={() => openEdit('muestra', m)} title="Editar"><Edit size={14} /></button>
-                          <button className="icon-btn" onClick={() => requestDelete('muestras', m.id, sampleTitle)} title="Eliminar"><Trash2 size={14} /></button>
+                          <button className="icon-btn" onClick={() => openEdit('muestra', m)}><Edit size={14} /></button>
+                          <button className="icon-btn" onClick={() => requestDelete('muestras', m.id, sampleTitle)}><Trash2 size={14} /></button>
                         </div>
                       </div>
                     </div>
                   );
-
-
                 })
               }
             </>}
@@ -1208,7 +1483,6 @@ export default function App() {
                         <div style={{fontWeight: 500, fontSize: '0.85rem'}}>{c.asunto} <span className="badge badge-navy" style={{marginLeft: 4}}>{c.tipo}</span></div>
                         <div style={{fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2}}>{c.contacto_nombre || ''} · {fmtDate(c.fecha)}</div>
                         {c.resumen && <div style={{fontSize: '0.75rem', background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', marginTop: 4}} dangerouslySetInnerHTML={{__html: c.resumen}} />}
-                        {c.proximo && <div style={{fontSize: '0.75rem', color: 'var(--dy-blue)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4}}><ArrowRight size={12} /> {c.proximo}</div>}
                         <div style={{display: 'flex', gap: 4, marginTop: 4}}>
                           <button className="icon-btn" onClick={() => openEdit('comunicacion', c)}><Edit size={14} /></button>
                           <button className="icon-btn" onClick={() => requestDelete('comunicaciones', c.id, c.asunto)}><Trash2 size={14} /></button>
@@ -1223,9 +1497,9 @@ export default function App() {
         )}
 
         {/* ===== PAÍSES ===== */}
-        {activeTab === 'paises' && (
+        {!loading && activeTab === 'paises' && (
           <div>
-            <div className="section-header"><h3><Globe size={20} /> Países destino</h3></div>
+            <div className="section-header"><h3><Globe size={20} /> Países Destino</h3></div>
             <div className="filter-bar">
               <div className="filter-spacer" />
               <button className="btn btn-primary btn-sm" onClick={() => openNew('pais')}><Plus size={14} /> Agregar país</button>
@@ -1237,7 +1511,6 @@ export default function App() {
                     <div style={{fontSize: 28, marginBottom: 6}}>{p.bandera || '🌐'}</div>
                     <div style={{fontWeight: 600, fontSize: '0.95rem', marginBottom: 8}}>{p.nombre}</div>
                     {p.arancel > 0 && <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', padding: '3px 0', borderTop: '1px solid var(--border)'}}><span style={{color: 'var(--text-muted)'}}>Arancel</span><span style={{fontWeight: 500}}>{p.arancel}%</span></div>}
-                    {p.incoterm && <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', padding: '3px 0', borderTop: '1px solid var(--border)'}}><span style={{color: 'var(--text-muted)'}}>Incoterm</span><span style={{fontWeight: 500}}>{p.incoterm}</span></div>}
                     {p.moneda && <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', padding: '3px 0', borderTop: '1px solid var(--border)'}}><span style={{color: 'var(--text-muted)'}}>Moneda</span><span style={{fontWeight: 500}}>{p.moneda}</span></div>}
                     {p.sanitario && <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', padding: '3px 0', borderTop: '1px solid var(--border)'}}><span style={{color: 'var(--text-muted)'}}>Org. sanitario</span><span style={{fontWeight: 500, color: 'var(--success)'}}>{p.sanitario}</span></div>}
                     <div style={{display: 'flex', gap: 4, marginTop: 8}}>
@@ -1251,70 +1524,57 @@ export default function App() {
           </div>
         )}
 
-        {/* ===== DOCUMENTOS ===== */}
-        {activeTab === 'documentos' && (
-          <div className="card">
-            <div className="section-header"><h3><FileText size={20} /> Documentos</h3></div>
-            <div className="filter-bar">
-              <select className="form-input" value={docFilterTipo} onChange={e => setDocFilterTipo(e.target.value)}>
-                <option value="">Todos los tipos</option>
-                <option>Invoice</option><option>Bill of Lading</option><option>Packing List</option><option>Certificado fitosanitario</option><option>Certificado de origen</option><option>Contrato</option><option>Otro</option>
-              </select>
-              <select className="form-input" value={docFilterEstado} onChange={e => setDocFilterEstado(e.target.value)}>
-                <option value="">Todos los estados</option>
-                <option>Vigente</option><option>Vencido</option><option>Por vencer</option>
-              </select>
-              <div className="filter-spacer" />
-              <button className="btn btn-primary btn-sm" onClick={() => openNew('documento')}><Plus size={14} /> Agregar documento</button>
-            </div>
-            <div className="table-container">
-              <table>
-                <thead><tr><th>Documento</th><th>Tipo</th><th>País / Contacto</th><th>Vencimiento</th><th>Estado</th><th></th></tr></thead>
-                <tbody>
-                  {filteredDocumentos.length === 0 ? <tr><td colSpan="6"><div className="empty-state"><div className="empty-state-icon"><FileText size={28} /></div><div className="empty-state-text">Sin documentos registrados.</div></div></td></tr> :
-                    filteredDocumentos.map(d => {
-                      const dias = d.vencimiento ? daysFrom(d.vencimiento) : null;
-                      return (
-                        <tr key={d.id}>
-                          <td><div style={{display: 'flex', alignItems: 'center', gap: 8}}><span style={{color: 'var(--text-muted)'}}>{docIcon(d.tipo)}</span><div><strong>{d.nombre}</strong>{d.numero && <div style={{fontSize: '0.7rem', color: 'var(--text-muted)'}}>{d.numero}</div>}</div></div></td>
-                          <td>{d.tipo}</td>
-                          <td>{d.pais_nombre || '—'}</td>
-                          <td style={{color: dias !== null && dias <= 7 ? 'var(--danger)' : dias !== null && dias <= 30 ? 'var(--warning)' : 'var(--text)', fontWeight: dias !== null && dias <= 30 ? 500 : 400}}>
-                            {fmtDate(d.vencimiento)}
-                            {dias !== null && dias <= 30 && dias >= 0 && <span className="badge badge-amber" style={{marginLeft: 6}}>En {dias}d</span>}
-                          </td>
-                          <td>{estadoBadge(d.estado)}</td>
-                          <td><button className="icon-btn" onClick={() => openEdit('documento', d)}><Edit size={14} /></button> <button className="icon-btn" onClick={() => requestDelete('documentos', d.id, d.nombre)}><Trash2 size={14} /></button></td>
-                        </tr>
-                      );
-                    })
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
         {/* ===== INTELIGENCIA ===== */}
-        {activeTab === 'inteligencia' && (
+        {!loading && activeTab === 'inteligencia' && (
           <div className="card">
-            <div className="section-header"><h3><TrendingUp size={20} /> Inteligencia comercial</h3></div>
+            <div className="section-header"><h3><TrendingUp size={20} /> Inteligencia Comercial</h3></div>
             <div className="tabs">
               <button className={`tab-btn ${intelTab === 'precios' ? 'active' : ''}`} onClick={() => setIntelTab('precios')}><DollarSign size={14} /> Precios competidores</button>
               <button className={`tab-btn ${intelTab === 'tendencias' ? 'active' : ''}`} onClick={() => setIntelTab('tendencias')}><BarChart3 size={14} /> Tendencias de mercado</button>
             </div>
 
-            {intelTab === 'precios' && <>
-              <div className="filter-bar">
-                <div className="filter-spacer" />
+            <div className="filter-bar" style={{marginTop: 12}}>
+              <select className="form-input" value={intelFilterPais} onChange={e => setIntelFilterPais(e.target.value)}>
+                <option value="">Todos los países</option>
+                {paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Filtrar por marca o palabra clave..."
+                value={intelFilterMarca}
+                onChange={e => setIntelFilterMarca(e.target.value)}
+              />
+              <div className="filter-spacer" />
+              {intelTab === 'precios' ? (
                 <button className="btn btn-primary btn-sm" onClick={() => openNew('precio')}><Plus size={14} /> Registrar precio</button>
-              </div>
+              ) : (
+                <button className="btn btn-primary btn-sm" onClick={() => openNew('tendencia')}><Plus size={14} /> Crear nota</button>
+              )}
+            </div>
+
+            {intelTab === 'precios' && (
               <div className="table-container">
                 <table>
-                  <thead><tr><th>Competidor / Producto</th><th>País</th><th>Categoría</th><th>Precio</th><th>Unidad</th><th>Precio/kg</th><th>Fuente</th><th>Fecha</th><th></th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Competidor / Producto</th>
+                      <th>País</th>
+                      <th>Categoría</th>
+                      <th>Precio</th>
+                      <th>Unidad</th>
+                      <th>Precio/kg</th>
+                      <th>Fotos</th>
+                      <th>Fuente</th>
+                      <th>Fecha</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
                   <tbody>
-                    {precios.length === 0 ? <tr><td colSpan="9"><div className="empty-state"><div className="empty-state-icon"><DollarSign size={28} /></div><div className="empty-state-text">Registrá precios de competidores en ferias, visitas o investigación online.</div></div></td></tr> :
-                      precios.map(p => (
+                    {filteredPrecios.length === 0 ? (
+                      <tr><td colSpan="10"><div className="empty-state"><div className="empty-state-icon"><DollarSign size={28} /></div><div className="empty-state-text">Sin precios de competidores registrados</div></div></td></tr>
+                    ) : (
+                      filteredPrecios.map(p => (
                         <tr key={p.id}>
                           <td><strong>{p.competidor}</strong>{p.producto && <div style={{fontSize: '0.7rem', color: 'var(--text-muted)'}}>{p.producto}</div>}</td>
                           <td>{p.pais_nombre || '—'}</td>
@@ -1322,179 +1582,119 @@ export default function App() {
                           <td style={{fontWeight: 500}}>{p.precio > 0 ? `$${parseFloat(p.precio).toLocaleString()}` : '—'}</td>
                           <td>{p.unidad || '—'}</td>
                           <td style={{color: 'var(--text)', fontWeight: 500}}>{p.peso > 0 && p.precio > 0 ? (parseFloat(p.precio) / parseFloat(p.peso)).toFixed(2) + ' /kg' : '—'}</td>
-                          <td style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>
+                          <td>
                             {p.imagen_url ? (
-                              (() => {
-                                let imgs = [];
-                                try {
-                                  const parsed = JSON.parse(p.imagen_url);
-                                  imgs = Array.isArray(parsed) ? parsed : [{ dataUrl: p.imagen_url }];
-                                } catch {
-                                  imgs = [{ dataUrl: p.imagen_url }];
-                                }
-                                return (
-                                  <div style={{display: 'flex', gap: 4, flexWrap: 'wrap'}}>
-                                    {imgs.map((imgObj, i) => (
-                                      <button key={i} type="button" className="btn btn-xs btn-outline" onClick={() => setPreviewImage(imgObj.dataUrl || imgObj)} style={{display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px'}}>
-                                        <Camera size={11} /> Foto {imgs.length > 1 ? i + 1 : ''}
-                                      </button>
-                                    ))}
-                                  </div>
-                                );
-                              })()
+                              <button type="button" className="btn btn-xs btn-outline" onClick={() => setPreviewImage(p.imagen_url)}>
+                                <Camera size={11} /> Ver foto
+                              </button>
                             ) : '—'}
                           </td>
-                          <td style={{color: 'var(--text-muted)'}}>{p.fuente || '—'}</td>
+                          <td style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{p.fuente || '—'}</td>
                           <td style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{fmtDate(p.fecha)}</td>
-                          <td><button className="icon-btn" onClick={() => openEdit('precio', p)}><Edit size={14} /></button> <button className="icon-btn" onClick={() => requestDelete('precios', p.id, p.competidor)}><Trash2 size={14} /></button></td>
+                          <td>
+                            <button className="icon-btn" onClick={() => openEdit('precio', p)}><Edit size={14} /></button>
+                            <button className="icon-btn" onClick={() => requestDelete('precios', p.id, p.competidor)}><Trash2 size={14} /></button>
+                          </td>
                         </tr>
                       ))
-                    }
+                    )}
                   </tbody>
                 </table>
               </div>
-            </>}
+            )}
 
-            {intelTab === 'tendencias' && <>
-              <div className="filter-bar">
-                <div className="filter-spacer" />
-                <button className="btn btn-primary btn-sm" onClick={() => openNew('tendencia')}><Plus size={14} /> Agregar nota</button>
-              </div>
-              {tendencias.length === 0 ? <div className="empty-state"><div className="empty-state-icon"><BarChart3 size={28} /></div><div className="empty-state-text">Agregá notas de inteligencia de mercado</div></div> :
-                tendencias.map(t => (
-                  <div key={t.id} className="intel-card">
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6}}>
-                      <div><strong style={{fontSize: '0.9rem'}}>{t.titulo}</strong><span style={{marginLeft: 8, fontSize: '0.75rem', color: 'var(--text-muted)'}}>{t.pais_nombre || ''}</span></div>
-                      <div style={{display: 'flex', gap: 4, alignItems: 'center'}}>
-                        <span className="badge badge-blue">{t.categoria || '—'}</span>
-                        <button className="icon-btn" onClick={() => openEdit('tendencia', t)}><Edit size={14} /></button>
-                        <button className="icon-btn" onClick={() => requestDelete('tendencias', t.id, t.titulo)}><Trash2 size={14} /></button>
+            {intelTab === 'tendencias' && (
+              <div style={{display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12}}>
+                {filteredTendencias.length === 0 ? (
+                  <div className="empty-state"><div className="empty-state-icon"><BarChart3 size={28} /></div><div className="empty-state-text">Sin tendencias registradas</div></div>
+                ) : (
+                  filteredTendencias.map(t => (
+                    <div key={t.id} className="card" style={{padding: 14, border: '1px solid var(--border)'}}>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                        <h4 style={{margin: 0, fontSize: '0.95rem'}}>{t.titulo}</h4>
+                        <div style={{display: 'flex', gap: 4}}>
+                          <button className="icon-btn" onClick={() => openEdit('tendencia', t)}><Edit size={14} /></button>
+                          <button className="icon-btn" onClick={() => requestDelete('tendencias', t.id, t.titulo)}><Trash2 size={14} /></button>
+                        </div>
                       </div>
-                    </div>
-                    {t.descripcion && <div style={{fontSize: '0.8rem', lineHeight: 1.5}} dangerouslySetInnerHTML={{__html: t.descripcion}} />}
-                    <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 6}}>
-                      {t.fuente && <span style={{fontSize: '0.7rem', color: 'var(--text-muted)'}}>Fuente: {t.fuente}</span>}
-                      {t.tags && <div style={{display: 'flex', gap: 4, flexWrap: 'wrap'}}>{t.tags.split(',').map((tag, i) => <span key={i} className="badge badge-gray"><Tag size={9} /> {tag.trim()}</span>)}</div>}
-                    </div>
-                  </div>
-                ))
-              }
-            </>}
-          </div>
-        )}
-
-        {/* ===== CALCULADORA ===== */}
-        {activeTab === 'calculadora' && (
-          <div>
-            <div className="section-header"><h3><Calculator size={20} /> Calculadora de exportación</h3></div>
-            <div className="metrics-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))'}}>
-              <div className="card">
-                <h3 style={{display: 'flex', alignItems: 'center', gap: 8}}><Calculator size={18} /> Costo de exportación</h3>
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  const totalFOB = parseFloat(formValues.fob || 0) * parseInt(formValues.qty || 1);
-                  const cif = totalFOB + parseFloat(formValues.flete || 0) + parseFloat(formValues.seguro || 0);
-                  const arancelUSD = cif * (parseFloat(formValues.arancel || 0) / 100);
-                  const landed = cif + arancelUSD + parseFloat(formValues.otros || 0);
-                  axios.post('/calculos', { producto: formValues.producto, pais_id: formValues.pais_id, fob: formValues.fob, qty: formValues.qty, flete: formValues.flete, seguro: formValues.seguro, arancel: formValues.arancel, otros: formValues.otros, landed: landed.toFixed(2), fecha: new Date().toISOString().split('T')[0] }).then(() => {
-                    addToast({ type: 'success', title: 'Cálculo guardado', message: `Costo Landed Estimado: $${landed.toLocaleString('es-AR')}` });
-                    if (formValues.pais_id) lsSet('lastPaisId', formValues.pais_id);
-                    setFormValues({});
-                    fetchData();
-                  }).catch(() => addToast({ type: 'error', message: 'Error al guardar el cálculo.' }));
-                }}>
-                  <div className="form-group"><label className="form-label">Producto / descripción</label><input type="text" className="form-input" required maxLength={200} value={fv('producto')} onChange={e => setFv('producto', e.target.value)} placeholder="Ej: Tapas Don Yeyo x 24u" /></div>
-                  <div className="form-grid-2">
-                    <div className="form-group"><label className="form-label">Precio FOB (USD/unidad)</label><input type="number" step="any" min="0" className="form-input" required value={fv('fob')} onChange={e => setFv('fob', e.target.value)} /></div>
-                    <div className="form-group"><label className="form-label">Cantidad (unidades)</label><input type="number" min="1" className="form-input" value={fv('qty')} onChange={e => setFv('qty', e.target.value)} /></div>
-                  </div>
-                  <div className="form-grid-2">
-                    <div className="form-group"><label className="form-label">Flete internacional (USD)</label><input type="number" step="any" min="0" className="form-input" value={fv('flete')} onChange={e => setFv('flete', e.target.value)} /></div>
-                    <div className="form-group"><label className="form-label">Seguro (USD)</label><input type="number" step="any" min="0" className="form-input" value={fv('seguro')} onChange={e => setFv('seguro', e.target.value)} /></div>
-                  </div>
-                  <div className="form-grid-2">
-                    <div className="form-group"><label className="form-label">Arancel destino (%)</label><input type="number" step="any" min="0" max="100" className="form-input" value={fv('arancel')} onChange={e => setFv('arancel', e.target.value)} /></div>
-                    <div className="form-group"><label className="form-label">Otros gastos destino (USD)</label><input type="number" step="any" min="0" className="form-input" value={fv('otros')} onChange={e => setFv('otros', e.target.value)} /></div>
-                  </div>
-                  <div className="form-group"><label className="form-label">País destino</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
-                  <div style={{display: 'flex', gap: 8, marginTop: 14}}>
-                    <button type="submit" className="btn btn-primary">Calcular y guardar</button>
-                  </div>
-                </form>
-              </div>
-              <div className="card">
-                <h3 style={{display: 'flex', alignItems: 'center', gap: 8}}><ClipboardList size={18} /> Cálculos guardados</h3>
-                {calculos.length === 0 ? <div className="empty-state"><div className="empty-state-icon"><Calculator size={24} /></div><div className="empty-state-text" style={{fontSize: '0.8rem'}}>Los cálculos guardados aparecen aquí.</div></div> :
-                  calculos.map(c => (
-                    <div key={c.id} style={{padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: '0.85rem'}}>
-                      <div style={{fontWeight: 500}}>{c.producto}</div>
-                      <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 2}}>
-                        <span style={{color: 'var(--text-muted)'}}>{c.pais_nombre || ''} · {fmtDate(c.fecha)}</span>
-                        <span style={{fontWeight: 500, color: 'var(--text)'}}>${parseFloat(c.landed).toLocaleString()} landed</span>
+                      <div style={{fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4, display: 'flex', gap: 12}}>
+                        {t.pais_nombre && <span>📍 {t.pais_nombre}</span>}
+                        {t.categoria && <span>🏷️ {t.categoria}</span>}
+                        {t.fuente && <span>📰 Fuente: {t.fuente}</span>}
                       </div>
-                      <button className="icon-btn" style={{marginTop: 4}} onClick={() => requestDelete('calculos', c.id, c.producto)}><Trash2 size={14} /></button>
+                      {t.descripcion && <div style={{fontSize: '0.85rem', marginTop: 8}} dangerouslySetInnerHTML={{__html: t.descripcion}} />}
                     </div>
                   ))
-                }
+                )}
               </div>
-            </div>
+            )}
           </div>
         )}
 
         {/* ===== COBRANZAS ===== */}
-        {activeTab === 'cobranzas' && (
-          <div>
-            <div className="section-header"><h3><DollarSign size={20} /> Cobranzas</h3></div>
-            <div className="metrics-grid" style={{marginBottom: 20}}>
-              <div className="metric-card" style={{borderLeft: '4px solid var(--success)'}}><div className="metric-header">Cobrado (año)</div><div className="metric-value">${cobranzaTotalCobrada.toLocaleString('es-AR')}</div><div className="metric-footer">{cobranzas.filter(c => c.estado === 'Cobrado').length} operaciones</div></div>
-              <div className="metric-card" style={{borderLeft: '4px solid var(--warning)'}}><div className="metric-header">Pendiente</div><div className="metric-value">${cobranzaPendiente.toLocaleString('es-AR')}</div><div className="metric-footer">{cobranzas.filter(c => c.estado === 'Pendiente' || c.estado === 'Cobrado parcial').length} operaciones</div></div>
-              <div className="metric-card" style={{borderLeft: '4px solid var(--danger)'}}><div className="metric-header">Vencido</div><div className="metric-value" style={{color: 'var(--danger)'}}>${cobranzaVencida.toLocaleString('es-AR')}</div><div className="metric-footer">{cobranzas.filter(c => c.estado === 'Vencido').length} operaciones</div></div>
+        {!loading && activeTab === 'cobranzas' && (
+          <div className="card">
+            <div className="section-header"><h3><DollarSign size={20} /> Control de Cobranzas</h3></div>
+            <div className="filter-bar">
+              <select className="form-input" value={cobranzaFilterEstado} onChange={e => setCobranzaFilterEstado(e.target.value)}>
+                <option value="">Todos los estados</option>
+                <option>Pendiente</option>
+                <option>Cobrado parcial</option>
+                <option>Cobrado</option>
+                <option>Vencido</option>
+              </select>
+              <div className="filter-spacer" />
+              <button className="btn btn-primary btn-sm" onClick={() => openNew('cobranza')}><Plus size={14} /> Nueva cobranza</button>
             </div>
-            <div className="card">
-              <div className="filter-bar">
-                <input type="text" className="form-input search-input" placeholder="Buscar operación..." value={cobSearch} onChange={e => setCobSearch(e.target.value)} />
-                <select className="form-input" value={cobFilterEstado} onChange={e => setCobFilterEstado(e.target.value)}>
-                  <option value="">Todos los estados</option>
-                  <option>Pendiente</option><option>Cobrado parcial</option><option>Cobrado</option><option>Vencido</option>
-                </select>
-                <select className="form-input" value={cobFilterPais} onChange={e => setCobFilterPais(e.target.value)}>
-                  <option value="">Todos los países</option>
-                  {paisesCobUnicos.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-                <div className="filter-spacer" />
-                <button className="btn btn-primary btn-sm" onClick={() => openNew('cobranza')}><Plus size={14} /> Nueva cobranza</button>
-              </div>
-              <div className="table-container">
-                <table>
-                  <thead><tr><th>Operación</th><th>País</th><th>Monto USD</th><th>Unid.</th><th>Cobrado</th><th>Saldo</th><th>Vencimiento</th><th>Estado</th><th></th></tr></thead>
-                  <tbody>
-                    {filteredCobranzas.length === 0 ? <tr><td colSpan="9"><div className="empty-state"><div className="empty-state-icon"><DollarSign size={28} /></div><div className="empty-state-text">Sin operaciones. Registrá la primera cobranza.</div></div></td></tr> :
-                      filteredCobranzas.map(c => {
-                        const monto = parseFloat(c.monto || 0);
-                        const cobM = parseFloat(c.cobrado_monto || 0);
-                        const saldo = monto - cobM;
-                        const dias = c.vencimiento ? daysFrom(c.vencimiento) : null;
-                        return (
-                          <tr key={c.id}>
-                            <td><strong>{c.descripcion}</strong>{c.cliente_nombre && <div style={{fontSize: '0.7rem', color: 'var(--text-muted)'}}>{c.cliente_nombre}{c.condicion ? ` · ${c.condicion}` : ''}</div>}</td>
-                            <td>{c.pais_nombre || '—'}</td>
-                            <td style={{fontWeight: 500}}>${monto.toLocaleString('es-AR', {minimumFractionDigits: 2})}</td>
-                            <td style={{color: 'var(--text-muted)'}}>{c.unidades ? Number(c.unidades).toLocaleString() + ' u' : '—'}</td>
-                            <td style={{color: 'var(--success)', fontWeight: 500}}>{cobM > 0 ? '$' + cobM.toLocaleString('es-AR', {minimumFractionDigits: 2}) : '—'}</td>
-                            <td style={{color: saldo > 0 ? 'var(--warning)' : 'var(--success)', fontWeight: 500}}>{saldo > 0 ? '$' + saldo.toLocaleString('es-AR', {minimumFractionDigits: 2}) : '✓'}</td>
-                            <td style={{color: dias !== null && dias < 0 && c.estado !== 'Cobrado' ? 'var(--danger)' : 'var(--text)', fontWeight: dias !== null && dias < 0 ? 500 : 400}}>
-                              {fmtDate(c.vencimiento)}
-                              {dias !== null && dias < 0 && c.estado !== 'Cobrado' && <><br/><span className="badge badge-red" style={{fontSize: '0.6rem'}}>{Math.abs(dias)}d vencido</span></>}
-                            </td>
-                            <td>{estadoBadge(c.estado)}</td>
-                            <td><button className="icon-btn" onClick={() => openEdit('cobranza', c)}><Edit size={14} /></button> <button className="icon-btn" onClick={() => requestDelete('cobranzas', c.id, c.descripcion)}><Trash2 size={14} /></button></td>
-                          </tr>
-                        );
-                      })
-                    }
-                  </tbody>
-                </table>
-              </div>
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Operación</th>
+                    <th>Cliente / País</th>
+                    <th>Monto USD</th>
+                    <th>Cobrado</th>
+                    <th>Estado</th>
+                    <th>Medio de Pago</th>
+                    <th>Condición de Pago</th>
+                    <th>Vencimiento</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCobranzas.length === 0 ? (
+                    <tr><td colSpan="9"><div className="empty-state"><div className="empty-state-icon"><DollarSign size={28} /></div><div className="empty-state-text">Sin cobranzas registradas</div></div></td></tr>
+                  ) : (
+                    filteredCobranzas.map(c => (
+                      <tr key={c.id}>
+                        <td><strong>{c.descripcion}</strong></td>
+                        <td>{c.cliente_nombre || '—'} {c.pais_nombre ? `(${c.pais_nombre})` : ''}</td>
+                        <td style={{fontWeight: 600}}>${parseFloat(c.monto || 0).toLocaleString()}</td>
+                        <td style={{color: 'var(--success)', fontWeight: 600}}>${parseFloat(c.cobrado_monto || 0).toLocaleString()}</td>
+                        <td>{estadoBadge(c.estado)}</td>
+                        <td style={{fontSize: '0.8rem'}}>{c.medio_pago || c.condicion || '—'}</td>
+                        <td style={{fontSize: '0.8rem'}}>{c.condicion_pago || '—'}</td>
+                        <td style={{fontSize: '0.8rem'}}>{fmtDate(c.vencimiento)}</td>
+                        <td>
+                          <button className="icon-btn" onClick={() => openEdit('cobranza', c)}><Edit size={14} /></button>
+                          <button className="icon-btn" onClick={() => requestDelete('cobranzas', c.id, c.descripcion)}><Trash2 size={14} /></button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ===== CALCULADORA LANDED ===== */}
+        {!loading && activeTab === 'calculadora' && (
+          <div className="card">
+            <div className="section-header"><h3><Calculator size={20} /> Calculadora de Costos Landed</h3></div>
+            <div className="empty-state">
+              <div className="empty-state-icon"><Calculator size={36} /></div>
+              <div className="empty-state-text">Calculá el costo final de exportación puesto en destino (CIF + Aranceles + Impuestos locales).</div>
             </div>
           </div>
         )}
@@ -1503,276 +1703,258 @@ export default function App() {
         {showModal && (
           <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowModal(null); }}>
             <div className="modal-content">
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
                 <h3 style={{margin: 0, fontSize: '1.1rem'}}>{
-                  {contacto: 'Contacto', visita: 'Visita / reunión', oportunidad: 'Oportunidad', cobranza: 'Operación de cobranza', tarea: 'Tarea', muestra: 'Muestra', comunicacion: 'Comunicación', documento: 'Documento', pais: 'País destino', precio: 'Precio de competidor', tendencia: 'Nota de inteligencia'}[showModal] || ''
+                  {
+                    contacto: 'Contacto', visita: 'Visita / Reunión', oportunidad: 'Oportunidad',
+                    operacion: 'Operación de exportación', cobranza: 'Cobranza', tarea: 'Tarea',
+                    muestra: 'Muestra', comunicacion: 'Comunicación', pais: 'País destino',
+                    precio: 'Precio competidor', tendencia: 'Nota de inteligencia'
+                  }[showModal] || ''
                 }</h3>
                 <button className="icon-btn" onClick={() => setShowModal(null)}><X size={18} /></button>
               </div>
-              <form onSubmit={(e) => {
-                const endpointMap = { contacto: 'contactos', visita: 'visitas', oportunidad: 'oportunidades', cobranza: 'cobranzas', tarea: 'tareas', muestra: 'muestras', comunicacion: 'comunicaciones', documento: 'documentos', pais: 'paises', precio: 'precios', tendencia: 'tendencias' };
-                handleSave(e, endpointMap[showModal]);
-              }} style={{display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden'}}>
-                <div className="modal-body">
 
-                  {/* --- CONTACTO --- */}
+              <form onSubmit={(e) => {
+                const endpointMap = {
+                  contacto: 'contactos', visita: 'visitas', oportunidad: 'oportunidades',
+                  operacion: 'operaciones', cobranza: 'cobranzas', tarea: 'tareas',
+                  muestra: 'muestras', comunicacion: 'comunicaciones', pais: 'paises',
+                  precio: 'precios', tendencia: 'tendencias'
+                };
+                handleSave(e, endpointMap[showModal]);
+              }}>
+                <div className="modal-body">
+                  {/* FORM CONTACTO */}
                   {showModal === 'contacto' && <>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Nombre *</label><input type="text" className="form-input" required maxLength={maxLen('contacto','nombre')} value={fv('nombre')} onChange={e => setFv('nombre', e.target.value)} placeholder="Nombre completo" /></div>
-                      <div className="form-group"><label className="form-label">Apellido</label><input type="text" className="form-input" maxLength={maxLen('contacto','apellido')} value={fv('apellido')} onChange={e => setFv('apellido', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Nombre *</label><input type="text" className="form-input" required value={fv('nombre')} onChange={e => setFv('nombre', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Apellido</label><input type="text" className="form-input" value={fv('apellido')} onChange={e => setFv('apellido', e.target.value)} /></div>
                     </div>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Empresa</label><input type="text" className="form-input" maxLength={maxLen('contacto','empresa')} value={fv('empresa')} onChange={e => setFv('empresa', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Empresa</label><input type="text" className="form-input" value={fv('empresa')} onChange={e => setFv('empresa', e.target.value)} /></div>
                       <div className="form-group"><label className="form-label">Rol</label><select className="form-input" value={fv('rol') || 'Importador'} onChange={e => setFv('rol', e.target.value)}><option>Importador</option><option>Distribuidor</option><option>Broker</option><option>Retailer</option><option>Otro</option></select></div>
                     </div>
                     <div className="form-grid-2">
                       <div className="form-group"><label className="form-label">País</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => { const p = paises.find(x => String(x.id) === String(e.target.value)); setFv('pais_id', e.target.value || null); setFv('pais_nombre', p ? p.nombre : ''); }}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
-                      <div className="form-group"><label className="form-label">Ciudad</label><input type="text" className="form-input" maxLength={maxLen('contacto','ciudad')} value={fv('ciudad')} onChange={e => setFv('ciudad', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Ciudad</label><input type="text" className="form-input" value={fv('ciudad')} onChange={e => setFv('ciudad', e.target.value)} /></div>
                     </div>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" maxLength={maxLen('contacto','email')} value={fv('email')} onChange={e => setFv('email', e.target.value)} placeholder="email@empresa.com" /></div>
-                      <div className="form-group"><label className="form-label">Teléfono / WhatsApp</label><input type="text" className="form-input" maxLength={maxLen('contacto','telefono')} value={fv('telefono')} onChange={e => setFv('telefono', e.target.value)} placeholder="+1 555 0000" /></div>
+                      <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" value={fv('email')} onChange={e => setFv('email', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Teléfono</label><input type="text" className="form-input" value={fv('telefono')} onChange={e => setFv('telefono', e.target.value)} /></div>
                     </div>
-                    <div className="form-group"><label className="form-label">Estado</label><select className="form-input" value={fv('estado') || 'Activo'} onChange={e => setFv('estado', e.target.value)}><option>Activo</option><option>Prospecto</option><option>En proceso</option><option>Inactivo</option></select></div>
-                    <div className="form-group"><label className="form-label">Notas</label><RichTextEditor value={fv('notas')} onChange={v => setFv('notas', v)} placeholder="Observaciones, intereses..." /></div>
+                    <div className="form-grid-2">
+                      <div className="form-group"><label className="form-label">Estado</label><select className="form-input" value={fv('estado') || 'Activo'} onChange={e => setFv('estado', e.target.value)}><option>Activo</option><option>En proceso</option><option>Prospecto</option><option>Inactivo</option><option>Descartado</option></select></div>
+                      {fv('estado') === 'En proceso' && (
+                        <div className="form-group"><label className="form-label">Etapa comercial</label><select className="form-input" value={fv('etapa_comercial') || 'Primer contacto'} onChange={e => setFv('etapa_comercial', e.target.value)}><option>Primer contacto</option><option>Reunión exploratoria</option><option>Cotización</option><option>Negociación</option><option>Habilitación regulatoria</option></select></div>
+                      )}
+                    </div>
+                    <div className="form-grid-3">
+                      <div className="form-group" style={{gridColumn: '1 / -1'}}><label className="form-label">Próxima acción</label><input type="text" className="form-input" value={fv('proxima_accion')} onChange={e => setFv('proxima_accion', e.target.value)} placeholder="Ej: Enviar cotización CIF Santos" /></div>
+                      <div className="form-group"><label className="form-label">Fecha próxima acción</label><input type="date" className="form-input" value={fvDate('proxima_accion_fecha')} onChange={e => setFv('proxima_accion_fecha', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Hora próxima acción</label><input type="time" className="form-input" value={fv('proxima_accion_hora')} onChange={e => setFv('proxima_accion_hora', e.target.value)} /></div>
+                    </div>
+                    <div className="form-group"><label className="form-label">Notas</label><RichTextEditor value={fv('notas')} onChange={v => setFv('notas', v)} /></div>
                   </>}
 
-                  {/* --- VISITA --- */}
+                  {/* FORM VISITA */}
                   {showModal === 'visita' && <>
-                    <div className="form-group"><label className="form-label">Título *</label><input type="text" className="form-input" required maxLength={maxLen('visita','titulo')} value={fv('titulo')} onChange={e => setFv('titulo', e.target.value)} placeholder="Ej: Expofood Brasil 2025" /></div>
+                    <div className="form-group"><label className="form-label">Título *</label><input type="text" className="form-input" required value={fv('titulo')} onChange={e => setFv('titulo', e.target.value)} placeholder="Ej: Feria APAS 2026 / Ronda ProCórdoba" /></div>
                     <div className="form-grid-2">
                       <div className="form-group"><label className="form-label">Tipo</label><select className="form-input" value={fv('tipo') || 'Feria internacional'} onChange={e => setFv('tipo', e.target.value)}><option>Feria internacional</option><option>Ronda de negocios</option><option>Reunión comercial</option><option>Visita a cliente</option><option>Videoconferencia</option></select></div>
                       <div className="form-group"><label className="form-label">Estado</label><select className="form-input" value={fv('estado') || 'Planificada'} onChange={e => setFv('estado', e.target.value)}><option>Planificada</option><option>Realizada</option><option>Cancelada</option></select></div>
                     </div>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Fecha</label><input type="date" className="form-input" value={fvDate('fecha')} onChange={e => setFv('fecha', e.target.value)} /></div>
-                      <div className="form-group"><label className="form-label">País / Ciudad</label><input type="text" className="form-input" maxLength={maxLen('visita','lugar')} value={fv('lugar')} onChange={e => setFv('lugar', e.target.value)} placeholder="São Paulo, Brasil" /></div>
+                      <div className="form-group"><label className="form-label">Fecha Inicio</label><input type="date" className="form-input" value={fvDate('fecha')} onChange={e => setFv('fecha', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Hora Inicio</label><input type="time" className="form-input" value={fv('hora')} onChange={e => setFv('hora', e.target.value)} /></div>
                     </div>
-                    <div className="form-group"><label className="form-label">Contactos participantes</label><input type="text" className="form-input" maxLength={maxLen('visita','contactos')} value={fv('contactos')} onChange={e => setFv('contactos', e.target.value)} placeholder="Nombres o empresas" /></div>
-                    {(fv('tipo') === 'Ronda de negocios') && (
-                      <div style={{background: 'var(--primary-light)', borderRadius: 'var(--radius-sm)', padding: '12px 14px', marginBottom: 14}}>
-                        <div style={{fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6}}><Handshake size={14} /> Datos de ronda de negocios</div>
+                    <div className="form-grid-2">
+                      <div className="form-group"><label className="form-label">Fecha Fin (multidía)</label><input type="date" className="form-input" value={fvDate('fecha_fin')} onChange={e => setFv('fecha_fin', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Hora Fin</label><input type="time" className="form-input" value={fv('hora_fin')} onChange={e => setFv('hora_fin', e.target.value)} /></div>
+                    </div>
+                    <div className="form-grid-2">
+                      <div className="form-group"><label className="form-label">Cliente / Contacto vinculado</label><select className="form-input" value={fv('contacto_id') || ''} onChange={e => setFv('contacto_id', e.target.value || null)}><option value="">Ninguno / Múltiples</option>{contactos.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido || ''} ({c.empresa || 'Empresa'})</option>)}</select></div>
+                      <div className="form-group"><label className="form-label">Lugar / Ciudad / Sede</label><input type="text" className="form-input" value={fv('lugar')} onChange={e => setFv('lugar', e.target.value)} placeholder="São Paulo, Brasil / Stand 45" /></div>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Vincular a Evento Padre / Ronda Marco</label>
+                      <select className="form-input" value={fv('actividad_padre_id') || ''} onChange={e => setFv('actividad_padre_id', e.target.value || null)}>
+                        <option value="">Ninguno (Es un evento principal)</option>
+                        {visitas.filter(v => v.id !== fv('id')).map(v => (
+                          <option key={v.id} value={v.id}>{v.titulo} ({v.tipo} - {fmtDate(v.fecha)})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* PANEL DE OPCIONES EXTRAS DE RONDA DE NEGOCIOS Y FERIAS */}
+                    {(fv('tipo') === 'Ronda de negocios' || fv('tipo') === 'Feria internacional' || fv('ronda_importadores') > 0) && (
+                      <div style={{background: 'var(--surface-hover)', padding: '16px', borderRadius: '12px', marginBottom: '16px', border: '1px solid var(--border)'}}>
+                        <h4 style={{fontSize: '0.88rem', fontWeight: 700, margin: '0 0 12px 0', color: 'var(--dy-blue)', display: 'flex', alignItems: 'center', gap: 6}}>
+                          <Briefcase size={16} /> Opciones Extras: Ronda de Negocios / Feria
+                        </h4>
                         <div className="form-grid-2">
-                          <div className="form-group"><label className="form-label">Organismo organizador</label><input className="form-input" maxLength={150} value={fv('ronda_org')} onChange={e => setFv('ronda_org', e.target.value)} placeholder="ProArgentina, Cancillería" /></div>
-                          <div className="form-group"><label className="form-label">Nro. de reuniones</label><input type="number" min="0" className="form-input" value={fv('ronda_reuniones')} onChange={e => setFv('ronda_reuniones', e.target.value)} /></div>
+                          <div className="form-group">
+                            <label className="form-label">Organización / Entidad Organizadora</label>
+                            <input type="text" className="form-input" value={fv('ronda_org')} onChange={e => setFv('ronda_org', e.target.value)} placeholder="Ej: ProCórdoba, Cancillería, Cámara Comercio" />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Total Reuniones Agendadas</label>
+                            <input type="number" min="0" className="form-input" value={fv('ronda_reuniones')} onChange={e => setFv('ronda_reuniones', e.target.value)} placeholder="0" />
+                          </div>
                         </div>
                         <div className="form-grid-2">
-                          <div className="form-group"><label className="form-label">Importadores contactados</label><input type="number" min="0" className="form-input" value={fv('ronda_importadores')} onChange={e => setFv('ronda_importadores', e.target.value)} placeholder="0" /></div>
-                          <div className="form-group"><label className="form-label">Pedidos generados (USD)</label><input type="number" min="0" className="form-input" value={fv('ronda_pedidos')} onChange={e => setFv('ronda_pedidos', e.target.value)} placeholder="0.00" /></div>
+                          <div className="form-group">
+                            <label className="form-label">Importadores / Contactos Calificados Relevados</label>
+                            <input type="number" min="0" className="form-input" value={fv('ronda_importadores')} onChange={e => setFv('ronda_importadores', e.target.value)} placeholder="0" />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Planilla / Adjunto Excel de Relevamiento (Link)</label>
+                            <input type="text" className="form-input" value={fv('excel_url')} onChange={e => setFv('excel_url', e.target.value)} placeholder="Link Drive / Excel con importadores" />
+                          </div>
                         </div>
-                        <div className="form-group" style={{marginBottom: 0}}><label className="form-label">Resultado general</label><select className="form-input" value={fv('ronda_resultado') || 'Positivo'} onChange={e => setFv('ronda_resultado', e.target.value)}><option>Muy positivo</option><option>Positivo</option><option>Neutral</option><option>Sin resultados</option></select></div>
+                        <div className="form-group" style={{marginBottom: 0}}>
+                          <label className="form-label">Resultado / Balance de la Ronda</label>
+                          <input type="text" className="form-input" value={fv('ronda_resultado')} onChange={e => setFv('ronda_resultado', e.target.value)} placeholder="Ej: 8 reuniones exitosas, 3 cotizaciones solicitadas" />
+                        </div>
                       </div>
                     )}
-                    <div className="form-group"><label className="form-label">Resultados / Notas</label><RichTextEditor value={fv('notas')} onChange={v => setFv('notas', v)} placeholder="Qué se habló, muestras entregadas..." /></div>
-                    <div className="form-group"><label className="form-label">Próximo paso</label><input className="form-input" maxLength={250} value={fv('proximo')} onChange={e => setFv('proximo', e.target.value)} placeholder="Ej: Enviar propuesta antes del 30/6" /></div>
+
+                    <div className="form-group"><label className="form-label">Notas / Minuta de la Reunión</label><RichTextEditor value={fv('notas')} onChange={v => setFv('notas', v)} /></div>
                   </>}
 
-                  {/* --- OPORTUNIDAD --- */}
+                  {/* FORM OPORTUNIDAD */}
                   {showModal === 'oportunidad' && <>
-                    <div className="form-group"><label className="form-label">Nombre de la oportunidad *</label><input type="text" className="form-input" required maxLength={maxLen('oportunidad','nombre')} value={fv('nombre')} onChange={e => setFv('nombre', e.target.value)} placeholder="Ej: Grupo Arcos — Tapas Don Yeyo" /></div>
+                    <div className="form-group"><label className="form-label">Nombre *</label><input type="text" className="form-input" required value={fv('nombre')} onChange={e => setFv('nombre', e.target.value)} placeholder="Ej: Tapas Don Yeyo — Walmart México" /></div>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">País</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
-                      <div className="form-group"><label className="form-label">Contacto</label><select className="form-input" value={fv('contacto_id') || ''} onChange={e => setFv('contacto_id', e.target.value || null)}><option value="">Selecciona...</option>{contactos.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido || ''}</option>)}</select></div>
+                      <div className="form-group"><label className="form-label">Marca</label><select className="form-input" value={fv('marca') || 'Don Yeyo'} onChange={e => setFv('marca', e.target.value)}><option>Don Yeyo</option><option>DeViano</option><option>Otro</option></select></div>
+                      {fv('marca') === 'Otro' && (
+                        <div className="form-group"><label className="form-label">Especificar Marca</label><input type="text" className="form-input" value={fv('marca_otra')} onChange={e => setFv('marca_otra', e.target.value)} /></div>
+                      )}
                     </div>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Marca</label><select className="form-input" value={fv('marca') || 'Don Yeyo'} onChange={e => setFv('marca', e.target.value)}><option>Don Yeyo</option><option>DeViano</option><option>Ambas</option></select></div>
-                      <div className="form-group"><label className="form-label">Categoría de producto</label><select className="form-input" value={fv('categoria') || 'Tapas'} onChange={e => setFv('categoria', e.target.value)}><option>Tapas</option><option>Pastas</option><option>Panificados</option><option>Tortillas</option><option>Mix</option></select></div>
+                      <div className="form-group"><label className="form-label">Categoría</label><select className="form-input" value={fv('categoria') || 'Tapas'} onChange={e => setFv('categoria', e.target.value)}><option>Tapas</option><option>Pastas</option><option>Panificados</option><option>Tortillas</option><option>Nuevo desarrollo</option></select></div>
+                      {fv('categoria') === 'Nuevo desarrollo' && (
+                        <div className="form-group"><label className="form-label">Detalle Nuevo Desarrollo</label><input type="text" className="form-input" value={fv('categoria_detalle')} onChange={e => setFv('categoria_detalle', e.target.value)} /></div>
+                      )}
                     </div>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Monto estimado (USD)</label><input type="number" step="any" min="0" className="form-input" value={fv('monto')} onChange={e => setFv('monto', e.target.value)} /></div>
-                      <div className="form-group"><label className="form-label">Probabilidad (%)</label><input type="number" className="form-input" value={fv('prob')} onChange={e => setFv('prob', e.target.value)} min="0" max="100" /></div>
+                      <div className="form-group"><label className="form-label">Inversión Necesaria (USD)</label><input type="number" step="any" min="0" className="form-input" value={fv('monto')} onChange={e => setFv('monto', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Etapa</label><select className="form-input" value={fv('etapa') || 'En análisis'} onChange={e => setFv('etapa', e.target.value)}><option>En análisis</option><option>En proceso</option><option>Finalizado</option><option>Descartado</option></select></div>
                     </div>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Etapa</label><select className="form-input" value={fv('etapa') || 'Prospecto'} onChange={e => setFv('etapa', e.target.value)}><option>Prospecto</option><option>Contactado</option><option>Propuesta</option><option>Negociación</option><option>Cerrado</option><option>Perdido</option></select></div>
+                      <div className="form-group"><label className="form-label">Responsable</label><input type="text" className="form-input" value={fv('responsable')} onChange={e => setFv('responsable', e.target.value)} placeholder="Responsable asignado" /></div>
                       <div className="form-group"><label className="form-label">Cierre estimado</label><input type="date" className="form-input" value={fvDate('cierre')} onChange={e => setFv('cierre', e.target.value)} /></div>
                     </div>
-                    <div className="form-group"><label className="form-label">Notas</label><RichTextEditor value={fv('notas')} onChange={v => setFv('notas', v)} placeholder="Detalles, condiciones..." /></div>
                   </>}
 
-                  {/* --- TAREA --- */}
-                  {showModal === 'tarea' && <>
-                    <div className="form-group"><label className="form-label">Descripción *</label><input type="text" className="form-input" required maxLength={maxLen('tarea','titulo')} value={fv('titulo')} onChange={e => setFv('titulo', e.target.value)} placeholder="¿Qué hay que hacer?" /></div>
+                  {/* FORM OPERACION */}
+                  {showModal === 'operacion' && <>
+                    <div className="form-group"><label className="form-label">Número de pedido *</label><input type="text" className="form-input" required value={fv('numero_pedido')} onChange={e => setFv('numero_pedido', e.target.value)} placeholder="Ej: PED-2026-089" /></div>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Fecha límite</label><input type="date" className="form-input" value={fvDate('fecha')} onChange={e => setFv('fecha', e.target.value)} /></div>
-                      <div className="form-group"><label className="form-label">Prioridad</label><select className="form-input" value={fv('prioridad') || 'media'} onChange={e => setFv('prioridad', e.target.value)}><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></select></div>
+                      <div className="form-group"><label className="form-label">Cliente activo CRM</label><select className="form-input" value={fv('cliente_id') || ''} onChange={e => setFv('cliente_id', e.target.value || null)}><option value="">Selecciona...</option>{contactos.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido || ''} ({c.empresa || 'Empresa'})</option>)}</select></div>
+                      <div className="form-group"><label className="form-label">País destino</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
                     </div>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Relacionado con (país)</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona un país...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
-                      <div className="form-group"><label className="form-label">Asignado a</label><input type="text" className="form-input" maxLength={100} value={fv('asignado')} onChange={e => setFv('asignado', e.target.value)} placeholder="Nombre" /></div>
-                    </div>
-                    <div className="form-group"><label className="form-label">Notas</label><RichTextEditor value={fv('notas')} onChange={v => setFv('notas', v)} placeholder="Detalle adicional..." minHeight={100} /></div>
-                  </>}
-
-                  {/* --- COBRANZA --- */}
-                  {showModal === 'cobranza' && <>
-                    <div className="form-group"><label className="form-label">Operación / descripción *</label><input type="text" className="form-input" required maxLength={maxLen('cobranza','descripcion')} value={fv('descripcion')} onChange={e => setFv('descripcion', e.target.value)} placeholder="Ej: Invoice #2025-089 — Tapas Don Yeyo" /></div>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Cliente / Empresa</label><select className="form-input" value={fv('cliente_id') || ''} onChange={e => setFv('cliente_id', e.target.value || null)}><option value="">Selecciona...</option>{contactos.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido || ''}</option>)}</select></div>
-                      <div className="form-group"><label className="form-label">País</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
+                      <div className="form-group"><label className="form-label">Estado</label><select className="form-input" value={fv('estado') || 'Pedido recibido'} onChange={e => setFv('estado', e.target.value)}><option>Pedido recibido</option><option>En proceso</option><option>Despachado</option></select></div>
+                      <div className="form-group"><label className="form-label">Fecha de entrega programada</label><input type="date" className="form-input" value={fvDate('fecha_entrega')} onChange={e => setFv('fecha_entrega', e.target.value)} /></div>
                     </div>
                     <div className="form-grid-3">
-                      <div className="form-group"><label className="form-label">Monto total (USD)</label><input type="number" step="any" min="0" className="form-input" value={fv('monto')} onChange={e => setFv('monto', e.target.value)} /></div>
-                      <div className="form-group"><label className="form-label">Monto cobrado (USD)</label><input type="number" step="any" min="0" className="form-input" value={fv('cobrado_monto')} onChange={e => setFv('cobrado_monto', e.target.value)} /></div>
-                      <div className="form-group"><label className="form-label">Saldo (USD)</label><input type="text" className="form-input" value={`$${(parseFloat(fv('monto') || 0) - parseFloat(fv('cobrado_monto') || 0)).toLocaleString()}`} readOnly style={{background: 'var(--background)', fontWeight: 500}} /></div>
+                      <div className="form-group"><label className="form-label">Unidades</label><input type="number" min="0" className="form-input" value={fv('unidades')} onChange={e => setFv('unidades', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Valor en USD</label><input type="number" step="any" min="0" className="form-input" value={fv('valor_usd')} onChange={e => setFv('valor_usd', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Kilogramos (kg)</label><input type="number" step="any" min="0" className="form-input" value={fv('kilogramos')} onChange={e => setFv('kilogramos', e.target.value)} /></div>
                     </div>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Unidades exportadas</label><input type="number" min="0" className="form-input" value={fv('unidades')} onChange={e => setFv('unidades', e.target.value)} /></div>
-                      <div className="form-group"><label className="form-label">Marca</label><select className="form-input" value={fv('marca') || 'Don Yeyo'} onChange={e => setFv('marca', e.target.value)}><option>Don Yeyo</option><option>DeViano</option><option>Ambas</option></select></div>
-                    </div>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Fecha de embarque</label><input type="date" className="form-input" value={fvDate('embarque')} onChange={e => setFv('embarque', e.target.value)} /></div>
-                      <div className="form-group"><label className="form-label">Fecha vencimiento cobro</label><input type="date" className="form-input" value={fvDate('vencimiento')} onChange={e => setFv('vencimiento', e.target.value)} /></div>
-                    </div>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Estado</label><select className="form-input" value={fv('estado') || 'Pendiente'} onChange={e => setFv('estado', e.target.value)}><option>Pendiente</option><option>Cobrado parcial</option><option>Cobrado</option><option>Vencido</option></select></div>
-                      <div className="form-group"><label className="form-label">Condición de pago</label><select className="form-input" value={fv('condicion') || 'Carta de crédito'} onChange={e => setFv('condicion', e.target.value)}><option>Carta de crédito</option><option>Transferencia anticipada</option><option>Cobranza documentaria</option><option>Cuenta corriente</option><option>Otro</option></select></div>
-                    </div>
-                    <div className="form-group"><label className="form-label">Notas</label><RichTextEditor value={fv('notas')} onChange={v => setFv('notas', v)} placeholder="Referencias, nro carta de crédito..." /></div>
+                    <div className="form-group"><label className="form-label">Incoterm</label><select className="form-input" value={fv('incoterm') || 'FOB'} onChange={e => setFv('incoterm', e.target.value)}><option>FOB</option><option>CIF</option><option>EXW</option><option>CFR</option><option>DDP</option></select></div>
                   </>}
 
-                  {/* --- MUESTRA --- */}
+                  {/* FORM TAREA */}
+                  {showModal === 'tarea' && <>
+                    <div className="form-group"><label className="form-label">Descripción *</label><input type="text" className="form-input" required value={fv('titulo')} onChange={e => setFv('titulo', e.target.value)} /></div>
+                    <div className="form-grid-3">
+                      <div className="form-group"><label className="form-label">Fecha límite</label><input type="date" className="form-input" value={fvDate('fecha')} onChange={e => setFv('fecha', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Hora específica</label><input type="time" className="form-input" value={fv('hora')} onChange={e => setFv('hora', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Prioridad</label><select className="form-input" value={fv('prioridad') || 'media'} onChange={e => setFv('prioridad', e.target.value)}><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></select></div>
+                    </div>
+                    <div className="form-group"><label className="form-label">Asignado a</label><input type="text" className="form-input" value={fv('asignado')} onChange={e => setFv('asignado', e.target.value)} /></div>
+                  </>}
+
+                  {/* FORM MUESTRA */}
                   {showModal === 'muestra' && <>
-                    <div className="form-group">
-                      <label className="form-label">Productos de la muestra *</label>
-                      {muestraProductos.length > 0 && (
-                        <div className="product-tags" style={{marginBottom: 10}}>
-                          {muestraProductos.map((p, i) => (
-                            <span key={i} className="product-tag">
-                              <span className="product-tag-name">
-                                <strong>{typeof p === 'object' ? p.nombre : p}</strong>
-                                {p.cantidad && ` (${p.cantidad} u.)`}
-                                {p.lote && ` · Lote: ${p.lote}`}
-                              </span>
-                              <button type="button" className="product-tag-remove" onClick={() => removeMuestraProducto(i)}><X size={12} /></button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <div className="product-add-row" style={{display: 'flex', flexDirection: 'column', gap: 8}}>
-                        <ProductAutocomplete
-                          value={muestraProductoInput}
-                          onChange={setMuestraProductoInput}
-                          onSelect={(prod) => {
-                            const display = `${prod.codigo} — ${prod.nombre}`;
-                            setMuestraProductoInput(display);
-                          }}
-                          productos={productosCatalogo}
-                          placeholder="Escribí código o nombre del producto..."
-                        />
-                        <div className="form-grid-2" style={{margin: 0}}>
-                          <input type="text" className="form-input" placeholder="Cantidad (ej: 10 u. / 5 cajas)" value={muestraCantInput} onChange={e => setMuestraCantInput(e.target.value)} />
-                          <input type="text" className="form-input" placeholder="Lote (ej: L-2026-04)" value={muestraLoteInput} onChange={e => setMuestraLoteInput(e.target.value)} />
-                        </div>
-                        <button type="button" className="btn btn-primary btn-sm" onClick={addMuestraProducto} style={{alignSelf: 'flex-start'}}><Plus size={14} /> Agregar este producto</button>
-                      </div>
-                      <div style={{fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4}}>Escribí 3 o más caracteres para buscar en el catálogo Finnegans o tipeá libremente.</div>
-                    </div>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Destinatario</label><input className="form-input" maxLength={maxLen('muestra','destinatario')} value={fv('destinatario')} onChange={e => setFv('destinatario', e.target.value)} /></div>
-                      <div className="form-group"><label className="form-label">País</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
-                    </div>
+                    <div className="form-group"><label className="form-label">Cliente destinatario</label><select className="form-input" value={fv('contacto_id') || ''} onChange={e => { const c = contactos.find(x => String(x.id) === String(e.target.value)); setFv('contacto_id', e.target.value || null); setFv('destinatario', c ? `${c.nombre} (${c.empresa || ''})` : ''); }}><option value="">Selecciona cliente registrado...</option>{contactos.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido || ''} ({c.empresa || 'Empresa'})</option>)}</select></div>
+                    <div className="form-group"><label className="form-label">Productos de la muestra *</label><input type="text" className="form-input" required value={fv('producto')} onChange={e => setFv('producto', e.target.value)} placeholder="Ej: Tapas de empanadas Criollas x 50 u." /></div>
                     <div className="form-grid-2">
                       <div className="form-group"><label className="form-label">Fecha de envío</label><input type="date" className="form-input" value={fvDate('fecha')} onChange={e => setFv('fecha', e.target.value)} /></div>
                       <div className="form-group"><label className="form-label">Resultado</label><select className="form-input" value={fv('resultado') || 'Pendiente'} onChange={e => setFv('resultado', e.target.value)}><option>Pendiente</option><option>En evaluación</option><option>Positivo</option><option>Negativo</option></select></div>
                     </div>
-                    <div className="form-group"><label className="form-label">Costo estimado (USD)</label><input type="number" step="0.01" min="0" className="form-input" value={fv('costo')} onChange={e => setFv('costo', e.target.value)} /></div>
-                    <div className="form-group"><label className="form-label">Notas / feedback</label><RichTextEditor value={fv('notas')} onChange={v => setFv('notas', v)} placeholder="Feedback del cliente..." /></div>
                   </>}
 
-                  {/* --- COMUNICACIÓN --- */}
-                  {showModal === 'comunicacion' && <>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Tipo</label><select className="form-input" value={fv('tipo') || 'Email'} onChange={e => setFv('tipo', e.target.value)}><option>Email</option><option>Llamada</option><option>WhatsApp</option><option>Reunión</option><option>Videollamada</option></select></div>
-                      <div className="form-group"><label className="form-label">Fecha</label><input type="date" className="form-input" value={fvDate('fecha')} onChange={e => setFv('fecha', e.target.value)} /></div>
-                    </div>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Contacto</label><select className="form-input" value={fv('contacto_id') || ''} onChange={e => setFv('contacto_id', e.target.value || null)}><option value="">Selecciona...</option>{contactos.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido || ''}</option>)}</select></div>
-                      <div className="form-group"><label className="form-label">País</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
-                    </div>
-                    <div className="form-group"><label className="form-label">Asunto / tema *</label><input type="text" className="form-input" required maxLength={maxLen('comunicacion','asunto')} value={fv('asunto')} onChange={e => setFv('asunto', e.target.value)} placeholder="¿De qué se trató?" /></div>
-                    <div className="form-group"><label className="form-label">Resumen</label><RichTextEditor value={fv('resumen')} onChange={v => setFv('resumen', v)} placeholder="Qué se dijo, compromisos..." /></div>
-                    <div className="form-group"><label className="form-label">Próximo paso</label><input className="form-input" maxLength={250} value={fv('proximo')} onChange={e => setFv('proximo', e.target.value)} placeholder="Ej: Responder con oferta formal el lunes" /></div>
-                  </>}
-
-                  {/* --- DOCUMENTO --- */}
-                  {showModal === 'documento' && <>
-                    <div className="form-group"><label className="form-label">Nombre / descripción *</label><input type="text" className="form-input" required maxLength={maxLen('documento','nombre')} value={fv('nombre')} onChange={e => setFv('nombre', e.target.value)} placeholder="Ej: Certificado fitosanitario SENASA #44812" /></div>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Tipo</label><select className="form-input" value={fv('tipo') || 'Invoice'} onChange={e => setFv('tipo', e.target.value)}><option>Invoice</option><option>Bill of Lading</option><option>Packing List</option><option>Certificado fitosanitario</option><option>Certificado de origen</option><option>Contrato</option><option>Otro</option></select></div>
-                      <div className="form-group"><label className="form-label">Estado</label><select className="form-input" value={fv('estado') || 'Vigente'} onChange={e => setFv('estado', e.target.value)}><option>Vigente</option><option>Por vencer</option><option>Vencido</option></select></div>
-                    </div>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">País / Contacto</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
-                      <div className="form-group"><label className="form-label">Fecha de vencimiento</label><input type="date" className="form-input" value={fvDate('vencimiento')} onChange={e => setFv('vencimiento', e.target.value)} /></div>
-                    </div>
-                    <div className="form-group"><label className="form-label">Número / referencia</label><input className="form-input" maxLength={maxLen('documento','numero')} value={fv('numero')} onChange={e => setFv('numero', e.target.value)} placeholder="Número de documento" /></div>
-                    <div className="form-group"><label className="form-label">Notas</label><RichTextEditor value={fv('notas')} onChange={v => setFv('notas', v)} /></div>
-                  </>}
-
-                  {/* --- PAÍS --- */}
+                  {/* FORM PAÍS */}
                   {showModal === 'pais' && <>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">País *</label><input type="text" className="form-input" required maxLength={maxLen('pais','nombre')} value={fv('nombre')} onChange={e => setFv('nombre', e.target.value)} placeholder="Ej: Brasil" /></div>
-                      <div className="form-group"><label className="form-label">Emoji bandera</label><input className="form-input" maxLength={maxLen('pais','bandera')} value={fv('bandera')} onChange={e => setFv('bandera', e.target.value)} placeholder="🇧🇷" /></div>
+                      <div className="form-group"><label className="form-label">País *</label><input type="text" className="form-input" required value={fv('nombre')} onChange={e => setFv('nombre', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Bandera emoji</label><input type="text" className="form-input" value={fv('bandera')} onChange={e => setFv('bandera', e.target.value)} placeholder="🇧🇷" /></div>
                     </div>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Arancel principal (%)</label><input type="number" step="0.01" min="0" max="100" className="form-input" value={fv('arancel')} onChange={e => setFv('arancel', e.target.value)} /></div>
-                      <div className="form-group"><label className="form-label">Incoterm habitual</label><input className="form-input" maxLength={maxLen('pais','incoterm')} value={fv('incoterm')} onChange={e => setFv('incoterm', e.target.value)} placeholder="CIF Santos" /></div>
+                      <div className="form-group"><label className="form-label">Arancel principal (%)</label><input type="number" step="0.01" className="form-input" value={fv('arancel')} onChange={e => setFv('arancel', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Moneda local</label><input type="text" className="form-input" value={fv('moneda')} onChange={e => setFv('moneda', e.target.value)} placeholder="BRL" /></div>
                     </div>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Posición arancelaria</label><input className="form-input" maxLength={maxLen('pais','ncm')} value={fv('ncm')} onChange={e => setFv('ncm', e.target.value)} placeholder="NCM 1902.19" /></div>
-                      <div className="form-group"><label className="form-label">Moneda local</label><input className="form-input" maxLength={maxLen('pais','moneda')} value={fv('moneda')} onChange={e => setFv('moneda', e.target.value)} placeholder="BRL" /></div>
-                    </div>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Tipo de cambio (vs USD)</label><input type="number" step="0.0001" min="0" className="form-input" value={fv('tipocambio')} onChange={e => setFv('tipocambio', e.target.value)} /></div>
-                      <div className="form-group"><label className="form-label">Fecha tipo de cambio</label><input type="date" className="form-input" value={fvDate('tc_fecha')} onChange={e => setFv('tc_fecha', e.target.value)} /></div>
-                    </div>
-                    <div className="form-group"><label className="form-label">Organismo sanitario regulador</label><input className="form-input" maxLength={150} value={fv('sanitario')} onChange={e => setFv('sanitario', e.target.value)} placeholder="ANVISA, SENASICA, FDA..." /></div>
-                    <div className="form-group"><label className="form-label">Requisitos de habilitación sanitaria</label><RichTextEditor value={fv('sanitario_req')} onChange={v => setFv('sanitario_req', v)} minHeight={80} /></div>
-                    <div className="form-group"><label className="form-label">Requisitos de etiquetado</label><RichTextEditor value={fv('etiquetado')} onChange={v => setFv('etiquetado', v)} minHeight={80} /></div>
-                    <div className="form-group"><label className="form-label">Notas / acceso al mercado</label><RichTextEditor value={fv('notas')} onChange={v => setFv('notas', v)} minHeight={80} /></div>
+                    <div className="form-group"><label className="form-label">Certificados / documentación obligatoria</label><RichTextEditor value={fv('sanitario_req')} onChange={v => setFv('sanitario_req', v)} /></div>
+                    <div className="form-group"><label className="form-label">Requisitos de etiquetado</label><RichTextEditor value={fv('etiquetado')} onChange={v => setFv('etiquetado', v)} /></div>
+                    <div className="form-group"><label className="form-label">Fotografías o ejemplos de etiquetado de referencia</label><ProImageUploader value={fv('etiquetado_fotos')} onChange={v => setFv('etiquetado_fotos', v)} maxFiles={5} /></div>
                   </>}
 
-                  {/* --- PRECIO COMPETIDOR --- */}
+                  {/* FORM PRECIO */}
                   {showModal === 'precio' && <>
-                    <div className="form-group"><label className="form-label">Competidor / marca *</label><input type="text" className="form-input" required maxLength={maxLen('precio','competidor')} value={fv('competidor')} onChange={e => setFv('competidor', e.target.value)} placeholder="Matarazzo, La Salteña..." /></div>
-                    <div className="form-group"><label className="form-label">Descripción del producto</label><input className="form-input" maxLength={maxLen('precio','producto')} value={fv('producto')} onChange={e => setFv('producto', e.target.value)} placeholder="Tapas de empanadas x 12u 500g" /></div>
+                    <div className="form-group"><label className="form-label">Competidor *</label><input type="text" className="form-input" required value={fv('competidor')} onChange={e => setFv('competidor', e.target.value)} /></div>
+                    <div className="form-group"><label className="form-label">Producto</label><input type="text" className="form-input" value={fv('producto')} onChange={e => setFv('producto', e.target.value)} /></div>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">País</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
-                      <div className="form-group"><label className="form-label">Categoría</label><select className="form-input" value={fv('categoria') || 'Tapas'} onChange={e => setFv('categoria', e.target.value)}><option>Tapas</option><option>Pastas</option><option>Panificados</option><option>Tortillas</option><option>Otro</option></select></div>
+                      <div className="form-group"><label className="form-label">Precio</label><input type="number" step="0.01" className="form-input" value={fv('precio')} onChange={e => setFv('precio', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Peso envase (kg)</label><input type="number" step="0.001" className="form-input" value={fv('peso')} onChange={e => setFv('peso', e.target.value)} /></div>
                     </div>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Precio</label><input type="number" step="0.01" min="0" className="form-input" value={fv('precio')} onChange={e => setFv('precio', e.target.value)} /></div>
-                      <div className="form-group"><label className="form-label">Moneda / unidad</label><input className="form-input" maxLength={30} value={fv('unidad')} onChange={e => setFv('unidad', e.target.value)} placeholder="USD/kg, BRL/paq" /></div>
-                    </div>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Peso neto envase (kg)</label><input type="number" step="0.001" min="0" className="form-input" value={fv('peso')} onChange={e => setFv('peso', e.target.value)} placeholder="0.500" /></div>
-                      <div className="form-group"><label className="form-label">Precio / kg (calculado)</label><input className="form-input" readOnly value={fv('precio') && fv('peso') ? (parseFloat(fv('precio')) / parseFloat(fv('peso'))).toFixed(2) + ' / kg' : ''} style={{background: 'var(--background)', color: 'var(--text)', fontWeight: 500}} /></div>
-                      <div className="form-group" style={{gridColumn: '1 / -1'}}>
-                        <label className="form-label">Fotos del producto o góndola (arrastrá o tocá para subir varias)</label>
-                        <ProImageUploader value={fv('imagen_url')} onChange={v => setFv('imagen_url', v)} maxFiles={5} />
-                      </div>
-                    </div>
-                    <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">Fuente</label><input className="form-input" maxLength={150} value={fv('fuente')} onChange={e => setFv('fuente', e.target.value)} placeholder="visita feria, web..." /></div>
-                      <div className="form-group"><label className="form-label">Fecha</label><input type="date" className="form-input" value={fvDate('fecha')} onChange={e => setFv('fecha', e.target.value)} /></div>
-                    </div>
-                    <div className="form-group"><label className="form-label">Notas</label><RichTextEditor value={fv('notas')} onChange={v => setFv('notas', v)} /></div>
+                    <div className="form-group"><label className="form-label">Fuente</label><input type="text" className="form-input" value={fv('fuente')} onChange={e => setFv('fuente', e.target.value)} placeholder="Feria APAS, Visita góndola..." /></div>
+                    <div className="form-group"><label className="form-label">Fotos de producto / góndola</label><ProImageUploader value={fv('imagen_url')} onChange={v => setFv('imagen_url', v)} maxFiles={5} /></div>
                   </>}
 
-                  {/* --- TENDENCIA --- */}
+                  {/* FORM TENDENCIA */}
                   {showModal === 'tendencia' && <>
-                    <div className="form-group"><label className="form-label">Título *</label><input type="text" className="form-input" required maxLength={maxLen('tendencia','titulo')} value={fv('titulo')} onChange={e => setFv('titulo', e.target.value)} placeholder="Crecimiento del mercado free-gluten en México" /></div>
+                    <div className="form-group"><label className="form-label">Título *</label><input type="text" className="form-input" required value={fv('titulo')} onChange={e => setFv('titulo', e.target.value)} /></div>
+                    <div className="form-group"><label className="form-label">Descripción</label><RichTextEditor value={fv('descripcion')} onChange={v => setFv('descripcion', v)} /></div>
+                    <div className="form-group"><label className="form-label">Fuente</label><input type="text" className="form-input" value={fv('fuente')} onChange={e => setFv('fuente', e.target.value)} /></div>
+                  </>}
+
+                  {/* FORM TAREA */}
+                  {showModal === 'tarea' && <>
+                    <div className="form-group"><label className="form-label">Título de la Tarea *</label><input type="text" className="form-input" required value={fv('titulo')} onChange={e => setFv('titulo', e.target.value)} placeholder="Ej: Enviar fichas técnicas a comprador de Walmart" /></div>
                     <div className="form-grid-2">
-                      <div className="form-group"><label className="form-label">País / Región</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
-                      <div className="form-group"><label className="form-label">Categoría</label><select className="form-input" value={fv('categoria') || 'Tendencia de consumo'} onChange={e => setFv('categoria', e.target.value)}><option>Tendencia de consumo</option><option>Regulación / normativa</option><option>Competencia</option><option>Logística / costos</option><option>Oportunidad</option><option>Riesgo</option></select></div>
+                      <div className="form-group"><label className="form-label">Fecha Límite</label><input type="date" className="form-input" value={fvDate('fecha')} onChange={e => setFv('fecha', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Hora Inicio</label><input type="time" className="form-input" value={fv('hora')} onChange={e => setFv('hora', e.target.value)} /></div>
                     </div>
-                    <div className="form-group"><label className="form-label">Descripción</label><RichTextEditor value={fv('descripcion')} onChange={v => setFv('descripcion', v)} placeholder="Detalle de la tendencia, datos, fuentes..." /></div>
-                    <div className="form-group"><label className="form-label">Fuente</label><input className="form-input" maxLength={200} value={fv('fuente')} onChange={e => setFv('fuente', e.target.value)} placeholder="Informe USDA, Feria Anuga..." /></div>
-                    <div className="form-group"><label className="form-label">Etiquetas</label><input className="form-input" maxLength={200} value={fv('tags')} onChange={e => setFv('tags', e.target.value)} placeholder="pasta, gluten-free, Europa (separadas por coma)" /></div>
+                    <div className="form-grid-2">
+                      <div className="form-group"><label className="form-label">Hora Fin</label><input type="time" className="form-input" value={fv('hora_fin')} onChange={e => setFv('hora_fin', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Prioridad</label><select className="form-input" value={fv('prioridad') || 'media'} onChange={e => setFv('prioridad', e.target.value)}><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></select></div>
+                    </div>
+                    <div className="form-grid-2">
+                      <div className="form-group"><label className="form-label">País Vincular</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
+                      <div className="form-group"><label className="form-label">Asignado a</label><input type="text" className="form-input" value={fv('asignado')} onChange={e => setFv('asignado', e.target.value)} placeholder="Ej: Gabriel T." /></div>
+                    </div>
+                    <div className="form-group"><label className="form-label">Notas / Instrucciones</label><RichTextEditor value={fv('notas')} onChange={v => setFv('notas', v)} /></div>
+                  </>}
+
+                  {/* FORM COBRANZA */}
+                  {showModal === 'cobranza' && <>
+                    <div className="form-group"><label className="form-label">Operación / Referencia *</label><input type="text" className="form-input" required value={fv('descripcion')} onChange={e => setFv('descripcion', e.target.value)} /></div>
+                    <div className="form-grid-2">
+                      <div className="form-group"><label className="form-label">Monto (USD)</label><input type="number" step="any" className="form-input" value={fv('monto')} onChange={e => setFv('monto', e.target.value)} /></div>
+                      <div className="form-group"><label className="form-label">Monto cobrado (USD)</label><input type="number" step="any" className="form-input" value={fv('cobrado_monto')} onChange={e => setFv('cobrado_monto', e.target.value)} /></div>
+                    </div>
+                    <div className="form-grid-2">
+                      <div className="form-group"><label className="form-label">Medio de pago</label><input type="text" className="form-input" value={fv('medio_pago')} onChange={e => setFv('medio_pago', e.target.value)} placeholder="Transferencia bancaria, Carta de crédito..." /></div>
+                      <div className="form-group"><label className="form-label">Condición de pago</label><select className="form-input" value={fv('condicion_pago') || 'Anticipado'} onChange={e => setFv('condicion_pago', e.target.value)}><option>Anticipado</option><option>50% anticipado / 50% contra BL</option><option>15 días</option><option>30 días</option><option>60 días</option><option>Otro</option></select></div>
+                    </div>
                   </>}
 
                 </div>
+
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => setShowModal(null)}>Cancelar</button>
                   <button type="submit" className="btn btn-primary">Guardar</button>
@@ -1782,17 +1964,7 @@ export default function App() {
           </div>
         )}
       </main>
-      {/* Modal Lightbox para foto de competidores */}
-      {previewImage && (
-        <div className="modal-backdrop" onClick={() => setPreviewImage(null)} style={{zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)'}}>
-          <div style={{position: 'relative', maxWidth: '90vw', maxHeight: '90vh'}} onClick={e => e.stopPropagation()}>
-            <img src={previewImage} alt="Foto competidor" style={{maxWidth: '100%', maxHeight: '85vh', borderRadius: 12, boxShadow: '0 10px 30px rgba(0,0,0,0.5)'}} />
-            <button type="button" className="icon-btn" onClick={() => setPreviewImage(null)} style={{position: 'absolute', top: -12, right: -12, background: 'var(--surface)', borderRadius: '50%', padding: 6, boxShadow: '0 4px 10px rgba(0,0,0,0.3)'}}>
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

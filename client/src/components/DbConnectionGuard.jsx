@@ -52,6 +52,7 @@ const DbConnectionGuard = () => {
     };
 
     const handleAxiosError = (e) => {
+      if (isCheckingRef.current) return;
       const status = e.detail?.status;
       const errorMsg = e.detail?.message || '';
 
