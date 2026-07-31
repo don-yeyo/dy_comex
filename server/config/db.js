@@ -56,10 +56,23 @@ pool.getConnection()
 
     await addColumnSafely(conn, 'oportunidades', 'marca_otra', 'VARCHAR(100) DEFAULT NULL AFTER marca');
     await addColumnSafely(conn, 'oportunidades', 'categoria_detalle', 'VARCHAR(150) DEFAULT NULL AFTER categoria');
+    await addColumnSafely(conn, 'oportunidades', 'probabilidad', 'VARCHAR(20) DEFAULT "50%" AFTER monto');
     await addColumnSafely(conn, 'oportunidades', 'responsable', 'VARCHAR(100) DEFAULT NULL AFTER cierre');
 
     await addColumnSafely(conn, 'muestras', 'contacto_id', 'INT DEFAULT NULL AFTER destinatario');
+    await addColumnSafely(conn, 'paises', 'incoterm_habitual', 'VARCHAR(50) DEFAULT NULL AFTER arancel');
+    await addColumnSafely(conn, 'paises', 'ncm', 'VARCHAR(50) DEFAULT NULL AFTER incoterm_habitual');
+    await addColumnSafely(conn, 'paises', 'tipocambio', 'DECIMAL(12,4) DEFAULT 1.0000 AFTER moneda');
+    await addColumnSafely(conn, 'paises', 'tc_fecha', 'DATE DEFAULT NULL AFTER tipocambio');
+    await addColumnSafely(conn, 'paises', 'sanitario', 'VARCHAR(100) DEFAULT NULL AFTER tc_fecha');
     await addColumnSafely(conn, 'paises', 'etiquetado_fotos', 'MEDIUMTEXT DEFAULT NULL AFTER etiquetado');
+    await addColumnSafely(conn, 'paises', 'notas', 'MEDIUMTEXT DEFAULT NULL AFTER etiquetado_fotos');
+    await addColumnSafely(conn, 'cobranzas', 'cliente_id', 'INT DEFAULT NULL AFTER id');
+    await addColumnSafely(conn, 'cobranzas', 'pais_id', 'INT DEFAULT NULL AFTER cliente_id');
+    await addColumnSafely(conn, 'cobranzas', 'cobrado_monto', 'DECIMAL(15,2) DEFAULT 0.00 AFTER monto');
+    await addColumnSafely(conn, 'cobranzas', 'unidades', 'INT DEFAULT 0 AFTER cobrado_monto');
+    await addColumnSafely(conn, 'cobranzas', 'marca', 'VARCHAR(50) DEFAULT "Don Yeyo" AFTER unidades');
+    await addColumnSafely(conn, 'cobranzas', 'embarque', 'DATE DEFAULT NULL AFTER marca');
     await addColumnSafely(conn, 'cobranzas', 'medio_pago', 'VARCHAR(50) DEFAULT NULL AFTER condicion');
     await addColumnSafely(conn, 'cobranzas', 'condicion_pago', 'VARCHAR(50) DEFAULT NULL AFTER medio_pago');
 

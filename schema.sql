@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS `paises` (
   `nombre` VARCHAR(80) UNIQUE NOT NULL,
   `bandera` VARCHAR(10) DEFAULT '🌐',
   `arancel` DECIMAL(5,2) DEFAULT 0.00,
+  `incoterm_habitual` VARCHAR(50) DEFAULT NULL,
+  `ncm` VARCHAR(50) DEFAULT NULL,
   `moneda` VARCHAR(10) DEFAULT 'USD',
   `tipocambio` DECIMAL(12,4) DEFAULT 1.0000,
   `tc_fecha` DATE DEFAULT NULL,

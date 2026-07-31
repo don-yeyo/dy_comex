@@ -27,10 +27,11 @@ ALTER TABLE `contactos`
   ADD COLUMN IF NOT EXISTS `proxima_accion_fecha` DATE DEFAULT NULL AFTER `proxima_accion`,
   ADD COLUMN IF NOT EXISTS `proxima_accion_hora` TIME DEFAULT NULL AFTER `proxima_accion_fecha`;
 
--- 4. Tabla Oportunidades: Marcas adicionales, Categoria detalle y Responsable
+-- 4. Tabla Oportunidades: Marcas adicionales, Categoria detalle, Probabilidad y Responsable
 ALTER TABLE `oportunidades`
   ADD COLUMN IF NOT EXISTS `marca_otra` VARCHAR(100) DEFAULT NULL AFTER `marca`,
   ADD COLUMN IF NOT EXISTS `categoria_detalle` VARCHAR(150) DEFAULT NULL AFTER `categoria`,
+  ADD COLUMN IF NOT EXISTS `probabilidad` VARCHAR(20) DEFAULT '50%' AFTER `monto`,
   ADD COLUMN IF NOT EXISTS `responsable` VARCHAR(100) DEFAULT NULL AFTER `cierre`;
 
 -- 5. Tabla Muestras: Contacto directo vinculado
@@ -38,12 +39,24 @@ ALTER TABLE `muestras`
   MODIFY COLUMN `producto` TEXT NOT NULL,
   ADD COLUMN IF NOT EXISTS `contacto_id` INT DEFAULT NULL AFTER `destinatario`;
 
--- 6. Tabla Países: Fotografías de etiquetado
+-- 6. Tabla Países: Fotografías de etiquetado, incoterm, NCM, tipo de cambio, organismo sanitario y notas
 ALTER TABLE `paises`
-  ADD COLUMN IF NOT EXISTS `etiquetado_fotos` MEDIUMTEXT DEFAULT NULL AFTER `etiquetado`;
+  ADD COLUMN IF NOT EXISTS `incoterm_habitual` VARCHAR(50) DEFAULT NULL AFTER `arancel`,
+  ADD COLUMN IF NOT EXISTS `ncm` VARCHAR(50) DEFAULT NULL AFTER `incoterm_habitual`,
+  ADD COLUMN IF NOT EXISTS `tipocambio` DECIMAL(12,4) DEFAULT 1.0000 AFTER `moneda`,
+  ADD COLUMN IF NOT EXISTS `tc_fecha` DATE DEFAULT NULL AFTER `tipocambio`,
+  ADD COLUMN IF NOT EXISTS `sanitario` VARCHAR(100) DEFAULT NULL AFTER `tc_fecha`,
+  ADD COLUMN IF NOT EXISTS `etiquetado_fotos` MEDIUMTEXT DEFAULT NULL AFTER `etiquetado`,
+  ADD COLUMN IF NOT EXISTS `notas` MEDIUMTEXT DEFAULT NULL AFTER `etiquetado_fotos`;
 
--- 7. Tabla Cobranzas: Medio y Condición de Pago
+-- 7. Tabla Cobranzas: Cliente, País, Monto cobrado, Unidades, Marca, Embarque, Medio y Condición de Pago
 ALTER TABLE `cobranzas`
+  ADD COLUMN IF NOT EXISTS `cliente_id` INT DEFAULT NULL AFTER `id`,
+  ADD COLUMN IF NOT EXISTS `pais_id` INT DEFAULT NULL AFTER `cliente_id`,
+  ADD COLUMN IF NOT EXISTS `cobrado_monto` DECIMAL(15,2) DEFAULT 0.00 AFTER `monto`,
+  ADD COLUMN IF NOT EXISTS `unidades` INT DEFAULT 0 AFTER `cobrado_monto`,
+  ADD COLUMN IF NOT EXISTS `marca` VARCHAR(50) DEFAULT 'Don Yeyo' AFTER `unidades`,
+  ADD COLUMN IF NOT EXISTS `embarque` DATE DEFAULT NULL AFTER `marca`,
   ADD COLUMN IF NOT EXISTS `medio_pago` VARCHAR(50) DEFAULT NULL AFTER `condicion`,
   ADD COLUMN IF NOT EXISTS `condicion_pago` VARCHAR(50) DEFAULT NULL AFTER `medio_pago`;
 

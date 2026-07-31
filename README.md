@@ -45,11 +45,11 @@ dy_comex/
 | **Visitas / Reuniones** | Registro de ferias y viajes multidía con fecha fin y hora, reuniones individuales agrupadas, selección de cliente registrado, seguimiento de *Contactos calificados* y adjuntos Excel. |
 | **Oportunidades** | Registro con marca personalizada (*Otro*), categoría libre (*Nuevo desarrollo*), *Inversión necesaria*, asignación de *Responsable* y etapas (*En análisis*, *En proceso*, *Finalizado*, *Descartado*). |
 | **Operaciones** | **[NUEVO - Reemplaza Documentos]** Seguimiento de pedidos de exportación (Nº de pedido, cliente CRM, país destino, estado, fecha de entrega programada, unidades, valor USD, kg, Incoterm y documentos adjuntos). |
-| **Muestras & Com.** | Registro de muestras con autocompletado del catálogo Finnegans ERP, selección de cliente registrado y sincronización automática de la fecha de envío a la Agenda. |
+| **Muestras y Com.** | Registro de muestras con autocompletado del catálogo Finnegans ERP, selección de cliente registrado y sincronización automática de la fecha de envío a la Agenda. |
 | **Países Destino** | Ficha por país destino (*Certificados / documentación obligatoria*, fotos/ejemplos de etiquetado, arancel, moneda). |
-| **Inteligencia comercial** | Precios de competidores con visualización corregida de columnas (*Fotos*, *Fuente*, *Fecha*) y filtros cruzados por País y Marca. Notas de tendencias. |
+| **Inteligencia Comercial** | Precios de competidores con visualización corregida de columnas (*Fotos*, *Fuente*, *Fecha*) y filtros cruzados por País y Marca. Notas de tendencias. |
 | **Cobranzas** | Control de cobranzas con diferenciación entre *Medio de pago* y *Condición de pago* (*Anticipado*, *50% contra BL*, *15/30/60 días*). |
-| **Calculadora Landed** | Cálculo de costo puesto en destino (CIF + Aranceles + Impuestos). |
+| **Calculadora Landed** | **[RESTAURADO & MEJORADO]** Herramienta interactiva de cálculo de costo final puesto en destino (CIF + Aranceles + Gastos de importación). Incluye desglose financiero en tiempo real (FOB Total, CIF, Arancel USD, Costo Landed Total y Unitario), guardado persistente en MySQL y recarga de cálculos guardados. |
 
 ---
 

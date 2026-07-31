@@ -332,10 +332,10 @@ exports.getOportunidades = async (req, res) => {
 };
 
 exports.createOportunidad = async (req, res) => {
-  const { nombre, pais_id, contacto_id, marca, marca_otra, categoria, categoria_detalle, monto, etapa, cierre, responsable, notas } = req.body;
+  const { nombre, pais_id, contacto_id, marca, marca_otra, categoria, categoria_detalle, monto, probabilidad, etapa, cierre, responsable, notas } = req.body;
   try {
     const [result] = await pool.query(
-      'INSERT INTO oportunidades (nombre, pais_id, contacto_id, marca, marca_otra, categoria, categoria_detalle, monto, etapa, cierre, responsable, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO oportunidades (nombre, pais_id, contacto_id, marca, marca_otra, categoria, categoria_detalle, monto, probabilidad, etapa, cierre, responsable, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         nombre,
         pais_id || null,
@@ -345,6 +345,7 @@ exports.createOportunidad = async (req, res) => {
         categoria || null,
         categoria_detalle || null,
         monto || 0.00,
+        probabilidad || '50%',
         etapa || 'En análisis',
         toSqlDate(cierre),
         responsable || null,
@@ -359,10 +360,10 @@ exports.createOportunidad = async (req, res) => {
 
 exports.updateOportunidad = async (req, res) => {
   const { id } = req.params;
-  const { nombre, pais_id, contacto_id, marca, marca_otra, categoria, categoria_detalle, monto, etapa, cierre, responsable, notas } = req.body;
+  const { nombre, pais_id, contacto_id, marca, marca_otra, categoria, categoria_detalle, monto, probabilidad, etapa, cierre, responsable, notas } = req.body;
   try {
     await pool.query(
-      'UPDATE oportunidades SET nombre = COALESCE(?, nombre), pais_id = ?, contacto_id = ?, marca = ?, marca_otra = ?, categoria = ?, categoria_detalle = ?, monto = ?, etapa = ?, cierre = ?, responsable = ?, notas = ? WHERE id = ?',
+      'UPDATE oportunidades SET nombre = COALESCE(?, nombre), pais_id = ?, contacto_id = ?, marca = ?, marca_otra = ?, categoria = ?, categoria_detalle = ?, monto = ?, probabilidad = ?, etapa = ?, cierre = ?, responsable = ?, notas = ? WHERE id = ?',
       [
         nombre,
         pais_id || null,
@@ -372,6 +373,7 @@ exports.updateOportunidad = async (req, res) => {
         categoria || null,
         categoria_detalle || null,
         monto || 0.00,
+        probabilidad || '50%',
         etapa || 'En análisis',
         toSqlDate(cierre),
         responsable || null,
@@ -498,14 +500,16 @@ exports.getPaises = async (req, res) => {
 };
 
 exports.createPais = async (req, res) => {
-  const { nombre, bandera, arancel, moneda, tipocambio, tc_fecha, sanitario, sanitario_req, etiquetado, etiquetado_fotos, notas } = req.body;
+  const { nombre, bandera, arancel, incoterm_habitual, ncm, moneda, tipocambio, tc_fecha, sanitario, sanitario_req, etiquetado, etiquetado_fotos, notas } = req.body;
   try {
     const [result] = await pool.query(
-      'INSERT INTO paises (nombre, bandera, arancel, moneda, tipocambio, tc_fecha, sanitario, sanitario_req, etiquetado, etiquetado_fotos, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO paises (nombre, bandera, arancel, incoterm_habitual, ncm, moneda, tipocambio, tc_fecha, sanitario, sanitario_req, etiquetado, etiquetado_fotos, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         nombre,
         bandera || '🌐',
         arancel || 0.00,
+        incoterm_habitual || null,
+        ncm || null,
         moneda || 'USD',
         tipocambio || 1.0000,
         toSqlDate(tc_fecha),
@@ -524,14 +528,16 @@ exports.createPais = async (req, res) => {
 
 exports.updatePais = async (req, res) => {
   const { id } = req.params;
-  const { nombre, bandera, arancel, moneda, tipocambio, tc_fecha, sanitario, sanitario_req, etiquetado, etiquetado_fotos, notas } = req.body;
+  const { nombre, bandera, arancel, incoterm_habitual, ncm, moneda, tipocambio, tc_fecha, sanitario, sanitario_req, etiquetado, etiquetado_fotos, notas } = req.body;
   try {
     await pool.query(
-      'UPDATE paises SET nombre = COALESCE(?, nombre), bandera = ?, arancel = ?, moneda = ?, tipocambio = ?, tc_fecha = ?, sanitario = ?, sanitario_req = ?, etiquetado = ?, etiquetado_fotos = ?, notas = ? WHERE id = ?',
+      'UPDATE paises SET nombre = COALESCE(?, nombre), bandera = ?, arancel = ?, incoterm_habitual = ?, ncm = ?, moneda = ?, tipocambio = ?, tc_fecha = ?, sanitario = ?, sanitario_req = ?, etiquetado = ?, etiquetado_fotos = ?, notas = ? WHERE id = ?',
       [
         nombre,
         bandera || '🌐',
         arancel || 0.00,
+        incoterm_habitual || null,
+        ncm || null,
         moneda || 'USD',
         tipocambio || 1.0000,
         toSqlDate(tc_fecha),
@@ -964,6 +970,16 @@ exports.createCobranza = async (req, res) => {
         notas || null
       ]
     );
+    if (vencimiento && estado !== 'Cobrado total') {
+      await autoSyncTarea(
+        `Vencimiento de Cobranza: ${descripcion || 'Operación'}`,
+        vencimiento,
+        null,
+        pais_id || null,
+        `Monto total: $${monto || 0} USD. Estado: ${estado || 'Pendiente'}`
+      );
+    }
+
     res.json({ id: result.insertId, message: 'Cobranza guardada con éxito' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -994,6 +1010,17 @@ exports.updateCobranza = async (req, res) => {
         id
       ]
     );
+
+    if (vencimiento && estado !== 'Cobrado total') {
+      await autoSyncTarea(
+        `Vencimiento de Cobranza: ${descripcion || 'Operación'}`,
+        vencimiento,
+        null,
+        pais_id || null,
+        `Monto total: $${monto || 0} USD. Estado: ${estado || 'Pendiente'}`
+      );
+    }
+
     res.json({ message: 'Cobranza actualizada con éxito' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1025,6 +1052,34 @@ exports.getProductosFinnegans = async (req, res) => {
   try {
     const productos = await finnegansService.getProductosTerminados();
     res.json(productos);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.syncFinnegansClientes = async (req, res) => {
+  try {
+    const clientes = await finnegansService.getClientesExportacion();
+    let synced = 0;
+    for (const c of clientes) {
+      if (!c.nombre) continue;
+      const finnegans_id = String(c.codigo || c.id || c.nombre);
+      const [existing] = await pool.query('SELECT id FROM contactos WHERE finnegans_id = ? OR nombre = ?', [finnegans_id, c.nombre]);
+      if (existing.length === 0) {
+        await pool.query(
+          'INSERT INTO contactos (nombre, empresa, rol, ciudad, email, telefono, estado, finnegans_id, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [c.nombre, c.empresa || c.razonSocial || c.nombre, c.rol || 'Importador', c.ciudad || null, c.email || null, c.telefono || null, 'Activo', finnegans_id, 'Sincronizado desde Finnegans ERP']
+        );
+        synced++;
+      } else {
+        await pool.query(
+          'UPDATE contactos SET empresa = COALESCE(?, empresa), email = COALESCE(?, email), telefono = COALESCE(?, telefono), finnegans_id = ? WHERE id = ?',
+          [c.empresa || c.razonSocial, c.email, c.telefono, finnegans_id, existing[0].id]
+        );
+        synced++;
+      }
+    }
+    res.json({ message: `Sincronización completada. ${synced} contactos procesados desde Finnegans.` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

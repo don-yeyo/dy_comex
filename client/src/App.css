@@ -244,7 +244,22 @@ body {
   padding: 16px 10px;
   overflow-y: auto;
   flex-shrink: 0;
-  transition: transform 0.25s ease;
+  transition: width 0.2s ease, transform 0.25s ease;
+}
+
+.sidebar.collapsed {
+  width: 68px;
+  padding: 16px 6px;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 10px 0;
+  gap: 4px;
+}
+
+.sidebar.collapsed .nav-label {
+  text-align: center;
 }
 
 .nav-group {
@@ -521,22 +536,37 @@ table {
 }
 
 th {
-  padding: 14px 16px;
-  font-weight: 600;
+  padding: 10px 14px;
+  font-weight: 700;
   color: var(--text-muted);
   border-bottom: 2px solid var(--border);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
 }
 
 td {
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border);
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 tr:hover td {
   background: var(--surface-hover);
+}
+
+.calc-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .calc-layout-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* BADGES */
@@ -601,16 +631,44 @@ tr:hover td {
 
 .modal-content {
   background: var(--surface);
-  padding: 30px;
+  padding: 24px 28px;
   border-radius: var(--radius);
   width: 90%;
-  max-width: 600px;
+  max-width: 620px;
   max-height: 90vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
   box-shadow: var(--shadow-lg);
+}
+
+.modal-content form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-right: 6px;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  align-items: center;
+  padding-top: 16px;
+  margin-top: 12px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
 }
 
 /* responsive */
@@ -2038,4 +2096,123 @@ body.modal-open {
 .badge-teal { background: rgba(20, 184, 166, 0.15); color: #0d9488; }
 .badge-emerald { background: rgba(16, 185, 129, 0.15); color: #059669; }
 .badge-sky { background: rgba(14, 165, 233, 0.15); color: #0284c7; }
+
+/* RESPONSIVE MOBILE STYLES */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+
+  .header {
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .brand {
+    gap: 6px;
+  }
+
+  .calendar-topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .calendar-grid {
+    gap: 3px;
+  }
+
+  .calendar-day-head {
+    font-size: 0.68rem;
+    padding: 4px 0;
+  }
+
+  .calendar-day-cell {
+    min-height: 54px;
+    padding: 4px 3px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .calendar-day-num {
+    font-size: 0.72rem;
+    margin-bottom: 2px;
+  }
+
+  .calendar-events-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 3px;
+    max-height: none !important;
+  }
+
+  .calendar-event-badge {
+    padding: 0 !important;
+    width: 7px;
+    height: 7px;
+    border-radius: 50% !important;
+    min-width: 7px;
+    border-left: none !important;
+  }
+
+  .calendar-event-badge span {
+    display: none !important;
+  }
+}
+
+/* ============================== */
+/* CALCULADORA DE COSTOS LANDED   */
+/* ============================== */
+.calc-result-box {
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.calc-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 0.88rem;
+  border-bottom: 1px dashed var(--border);
+}
+
+.calc-label {
+  color: var(--text-muted);
+}
+
+.calc-value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.calc-total-box {
+  background: var(--dy-blue);
+  color: #ffffff;
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+[data-theme="dark"] .calc-total-box {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.calc-total-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.calc-total-amount {
+  font-size: 1.3rem;
+  font-weight: 800;
+}
 

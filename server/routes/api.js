@@ -19,6 +19,7 @@ router.get('/me', apiController.getMe);
 // Rutas de Finnegans
 router.get('/finnegans/clientes', apiController.getFinnegansClientes);
 router.get('/finnegans/productos', apiController.getProductosFinnegans);
+router.post('/finnegans/sync-clientes', apiController.syncFinnegansClientes);
 
 // Rutas de Tareas
 router.get('/tareas', apiController.getTareas);
