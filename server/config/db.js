@@ -29,6 +29,22 @@ const addColumnSafely = async (conn, table, column, definition) => {
   }
 };
 
+// Helper seguro para agregar restricciones de clave foránea / únicas si no existen
+const addConstraintSafely = async (conn, table, constraintName, sqlQuery) => {
+  try {
+    const [constraints] = await conn.query(
+      `SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND CONSTRAINT_NAME = ?`,
+      [dbConfig.database, table, constraintName]
+    );
+    if (constraints.length === 0) {
+      await conn.query(sqlQuery);
+      console.log(`[Database Auto-Migration] Agregada restricción '${constraintName}' a la tabla '${table}'`);
+    }
+  } catch (e) {
+    /* Silencioso si existen incosistencias de datos previas */
+  }
+};
+
 // Verificar la conexión de forma asíncrona y ejecutar migraciones automáticas
 pool.getConnection()
   .then(async conn => {
@@ -92,12 +108,47 @@ pool.getConnection()
           \`incoterm\` VARCHAR(20) DEFAULT 'FOB',
           \`documentos\` MEDIUMTEXT DEFAULT NULL,
           \`notas\` TEXT DEFAULT NULL,
-          \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (\`cliente_id\`) REFERENCES \`contactos\`(\`id\`) ON DELETE SET NULL,
-          FOREIGN KEY (\`pais_id\`) REFERENCES \`paises\`(\`id\`) ON DELETE SET NULL
+          \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
       `);
     } catch (e) {}
+
+    // Aplicar Restricciones (Constraints) de Claves Foráneas para Integridad de Base de Datos
+    await addConstraintSafely(conn, 'operaciones', 'fk_operaciones_cliente',
+      'ALTER TABLE `operaciones` ADD CONSTRAINT `fk_operaciones_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `contactos`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE');
+
+    await addConstraintSafely(conn, 'operaciones', 'fk_operaciones_pais',
+      'ALTER TABLE `operaciones` ADD CONSTRAINT `fk_operaciones_pais` FOREIGN KEY (`pais_id`) REFERENCES `paises`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE');
+
+    await addConstraintSafely(conn, 'cobranzas', 'fk_cobranzas_cliente',
+      'ALTER TABLE `cobranzas` ADD CONSTRAINT `fk_cobranzas_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `contactos`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE');
+
+    await addConstraintSafely(conn, 'cobranzas', 'fk_cobranzas_pais',
+      'ALTER TABLE `cobranzas` ADD CONSTRAINT `fk_cobranzas_pais` FOREIGN KEY (`pais_id`) REFERENCES `paises`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE');
+
+    await addConstraintSafely(conn, 'tareas', 'fk_tareas_pais',
+      'ALTER TABLE `tareas` ADD CONSTRAINT `fk_tareas_pais` FOREIGN KEY (`pais_id`) REFERENCES `paises`(`id`) ON DELETE SET NULL ON UPDATE CASCADE');
+
+    await addConstraintSafely(conn, 'visitas', 'fk_visitas_contacto',
+      'ALTER TABLE `visitas` ADD CONSTRAINT `fk_visitas_contacto` FOREIGN KEY (`contacto_id`) REFERENCES `contactos`(`id`) ON DELETE SET NULL ON UPDATE CASCADE');
+
+    await addConstraintSafely(conn, 'muestras', 'fk_muestras_contacto',
+      'ALTER TABLE `muestras` ADD CONSTRAINT `fk_muestras_contacto` FOREIGN KEY (`contacto_id`) REFERENCES `contactos`(`id`) ON DELETE SET NULL ON UPDATE CASCADE');
+
+    await addConstraintSafely(conn, 'comunicaciones', 'fk_comunicaciones_contacto',
+      'ALTER TABLE `comunicaciones` ADD CONSTRAINT `fk_comunicaciones_contacto` FOREIGN KEY (`contacto_id`) REFERENCES `contactos`(`id`) ON DELETE SET NULL ON UPDATE CASCADE');
+
+    await addConstraintSafely(conn, 'oportunidades', 'fk_oportunidades_pais',
+      'ALTER TABLE `oportunidades` ADD CONSTRAINT `fk_oportunidades_pais` FOREIGN KEY (`pais_id`) REFERENCES `paises`(`id`) ON DELETE SET NULL ON UPDATE CASCADE');
+
+    await addConstraintSafely(conn, 'precios_competidores', 'fk_precios_pais',
+      'ALTER TABLE `precios_competidores` ADD CONSTRAINT `fk_precios_pais` FOREIGN KEY (`pais_id`) REFERENCES `paises`(`id`) ON DELETE SET NULL ON UPDATE CASCADE');
+
+    await addConstraintSafely(conn, 'tendencias_mercado', 'fk_tendencias_pais',
+      'ALTER TABLE `tendencias_mercado` ADD CONSTRAINT `fk_tendencias_pais` FOREIGN KEY (`pais_id`) REFERENCES `paises`(`id`) ON DELETE SET NULL ON UPDATE CASCADE');
+
+    await addConstraintSafely(conn, 'calculos_landed', 'fk_calculos_pais',
+      'ALTER TABLE `calculos_landed` ADD CONSTRAINT `fk_calculos_pais` FOREIGN KEY (`pais_id`) REFERENCES `paises`(`id`) ON DELETE SET NULL ON UPDATE CASCADE');
 
     conn.release();
   })

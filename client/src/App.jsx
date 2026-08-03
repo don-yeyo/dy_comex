@@ -14,6 +14,7 @@ import {
 import logo from './assets/logo-don-yeyo-png-sin-fondo.png';
 import { ToastContainer, useToast } from './components/Toast';
 import ConfirmModal from './components/ConfirmModal';
+import ForbiddenModal from './components/ForbiddenModal';
 import RichTextEditor from './components/RichTextEditor';
 import ProductAutocomplete from './components/ProductAutocomplete';
 import ProImageUploader from './components/ProImageUploader';
@@ -468,6 +469,24 @@ export default function App() {
   // Estado del modal de confirmación de eliminación
   const [confirmDelete, setConfirmDelete] = useState(null);
 
+  // Estado del modal de operaciones prohibidas / restricciones DB
+  const [forbiddenModal, setForbiddenModal] = useState({ open: false, title: '', message: '', details: [] });
+
+  const handleApiError = (err, defaultMsg = 'Ocurrió un error en la operación') => {
+    const data = err.response?.data;
+    if (data?.prohibited || err.response?.status === 409) {
+      setForbiddenModal({
+        open: true,
+        title: data?.title || 'Operación No Permitida',
+        message: data?.message || data?.error || 'La acción solicitada no se puede realizar por restricciones de integridad en la base de datos.',
+        details: data?.details || []
+      });
+    } else {
+      const serverMsg = data?.error || data?.message || err.message || defaultMsg;
+      toast.error(serverMsg);
+    }
+  };
+
   // Estado del modal universal
   const [showModal, setShowModal] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
@@ -818,8 +837,7 @@ export default function App() {
       loadData();
     } catch (err) {
       console.error('Error al guardar:', err);
-      const serverMsg = err.response?.data?.error || err.message;
-      toast.error(`Error al guardar: ${serverMsg}`);
+      handleApiError(err, 'Error al guardar el registro');
     }
   };
 
@@ -831,15 +849,14 @@ export default function App() {
   const handleConfirmDelete = async () => {
     if (!confirmDelete) return;
     const { endpoint, id } = confirmDelete;
+    setConfirmDelete(null);
     try {
       await axios.delete(`/${endpoint}/${id}`);
       toast.success('Registro eliminado');
       loadData();
     } catch (err) {
       console.error('Error al eliminar:', err);
-      toast.error('Error al eliminar el registro');
-    } finally {
-      setConfirmDelete(null);
+      handleApiError(err, 'Error al eliminar el registro');
     }
   };
 
@@ -1260,6 +1277,15 @@ export default function App() {
           onCancel={() => setConfirmDelete(null)}
         />
       )}
+
+      {/* Modal de Operación Prohibida / Integridad DB */}
+      <ForbiddenModal
+        open={forbiddenModal.open}
+        title={forbiddenModal.title}
+        message={forbiddenModal.message}
+        details={forbiddenModal.details}
+        onClose={() => setForbiddenModal(prev => ({ ...prev, open: false }))}
+      />
 
       {/* ========== HEADER ========== */}
       <header className="header glass">

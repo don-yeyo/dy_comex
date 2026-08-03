@@ -50,6 +50,7 @@ dy_comex/
 | **Inteligencia Comercial** | Precios de competidores con visualización corregida de columnas (*Fotos*, *Fuente*, *Fecha*) y filtros cruzados por País y Marca. Notas de tendencias. |
 | **Cobranzas** | Control de cobranzas con diferenciación entre *Medio de pago* y *Condición de pago* (*Anticipado*, *50% contra BL*, *15/30/60 días*). |
 | **Calculadora Landed** | **[RESTAURADO & MEJORADO]** Herramienta interactiva de cálculo de costo final puesto en destino (CIF + Aranceles + Gastos de importación). Incluye desglose financiero en tiempo real (FOB Total, CIF, Arancel USD, Costo Landed Total y Unitario), guardado persistente en MySQL y recarga de cálculos guardados. |
+| **Integridad & Seguridad DB** | **[NUEVO]** Migración automática de restricciones de claves foráneas (`FOREIGN KEY RESTRICT / SET NULL / CASCADE`) en MySQL y **Modal de Operación Prohibida** integrado en la UI para notificar al usuario cualquier bloqueo por datos relacionados o reglas de negocio con la estética visual del CRM. |
 
 ---
 

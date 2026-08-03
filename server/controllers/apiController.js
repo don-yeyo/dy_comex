@@ -222,9 +222,41 @@ exports.updateContacto = async (req, res) => {
 exports.deleteContacto = async (req, res) => {
   const { id } = req.params;
   try {
+    const [[contacto]] = await pool.query('SELECT nombre, apellido, empresa FROM contactos WHERE id = ?', [id]);
+    if (!contacto) {
+      return res.status(404).json({ error: 'Contacto no encontrado' });
+    }
+    const contactoLabel = `${contacto.nombre || ''} ${contacto.apellido || ''}`.trim() || contacto.empresa || `ID ${id}`;
+
+    const [[{ opCount }]] = await pool.query('SELECT COUNT(*) as opCount FROM operaciones WHERE cliente_id = ?', [id]);
+    const [[{ cobCount }]] = await pool.query('SELECT COUNT(*) as cobCount FROM cobranzas WHERE cliente_id = ?', [id]);
+
+    if (opCount > 0 || cobCount > 0) {
+      const details = [];
+      if (opCount > 0) details.push(`${opCount} Pedido(s) de exportación vinculados en el módulo Operaciones`);
+      if (cobCount > 0) details.push(`${cobCount} Registro(s) financiero(s) asociados en el módulo Cobranzas`);
+
+      return res.status(409).json({
+        prohibited: true,
+        error: 'Operación Prohibida por Integridad de Datos',
+        title: 'No se puede eliminar el Contacto / Cliente',
+        message: `El cliente '${contactoLabel}' posee registros comerciales y financieros activos. La eliminación directa está prohibida para mantener la auditoría de comercio exterior.`,
+        details
+      });
+    }
+
     await pool.query('DELETE FROM contactos WHERE id = ?', [id]);
-    res.json({ message: 'Contacto eliminado' });
+    res.json({ message: 'Contacto eliminado con éxito' });
   } catch (err) {
+    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.errno === 1451) {
+      return res.status(409).json({
+        prohibited: true,
+        error: 'Operación Prohibida por MySQL',
+        title: 'Restricción de Clave Foránea Activa',
+        message: 'No es posible eliminar el contacto seleccionado porque existen registros asociados en otras tablas del sistema.',
+        details: ['Existe una restricción de clave foránea activa (FOREIGN KEY RESTRICT) en la base de datos']
+      });
+    }
     res.status(500).json({ error: err.message });
   }
 };
@@ -580,9 +612,40 @@ exports.updatePais = async (req, res) => {
 exports.deletePais = async (req, res) => {
   const { id } = req.params;
   try {
+    const [[pais]] = await pool.query('SELECT nombre FROM paises WHERE id = ?', [id]);
+    if (!pais) {
+      return res.status(404).json({ error: 'País no encontrado' });
+    }
+
+    const [[{ opCount }]] = await pool.query('SELECT COUNT(*) as opCount FROM operaciones WHERE pais_id = ?', [id]);
+    const [[{ cobCount }]] = await pool.query('SELECT COUNT(*) as cobCount FROM cobranzas WHERE pais_id = ?', [id]);
+
+    if (opCount > 0 || cobCount > 0) {
+      const details = [];
+      if (opCount > 0) details.push(`${opCount} Operación(es) de exportación registradas para este país`);
+      if (cobCount > 0) details.push(`${cobCount} Control(es) de cobranzas asignados a este mercado`);
+
+      return res.status(409).json({
+        prohibited: true,
+        error: 'Operación Prohibida por Integridad de Datos',
+        title: 'No se puede eliminar el País Destino',
+        message: `El país '${pais.nombre}' está configurado en operaciones activas de exportación. Para preservar el historial comercial, debes reasignar o eliminar primero los siguientes registros:`,
+        details
+      });
+    }
+
     await pool.query('DELETE FROM paises WHERE id = ?', [id]);
-    res.json({ message: 'País eliminado' });
+    res.json({ message: 'País eliminado con éxito' });
   } catch (err) {
+    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.errno === 1451) {
+      return res.status(409).json({
+        prohibited: true,
+        error: 'Operación Prohibida por MySQL',
+        title: 'Restricción de Clave Foránea Activa',
+        message: 'No es posible eliminar el país porque existen operaciones registradas con esta ubicación.',
+        details: ['Restricción de Integridad Referencial de Base de Datos']
+      });
+    }
     res.status(500).json({ error: err.message });
   }
 };
@@ -677,8 +740,26 @@ exports.updateOperacion = async (req, res) => {
 exports.deleteOperacion = async (req, res) => {
   const { id } = req.params;
   try {
+    const [[op]] = await pool.query('SELECT numero_pedido, estado FROM operaciones WHERE id = ?', [id]);
+    if (!op) {
+      return res.status(404).json({ error: 'Operación no encontrada' });
+    }
+
+    if (op.estado === 'Despachado') {
+      return res.status(409).json({
+        prohibited: true,
+        error: 'Operación Prohibida por Regla de Negocio',
+        title: 'Exportación Despachada y Cerrada',
+        message: `El pedido Nº '${op.numero_pedido}' se encuentra en estado 'Despachado' (exportación ejecutada y cerrada). No se permite la eliminación de pedidos despachados para garantizar la integridad del historial de ventas.`,
+        details: [
+          'Estado actual: Despachado (Exportación cerrada)',
+          'Contacte al Administrador si requiere una modificación contable'
+        ]
+      });
+    }
+
     await pool.query('DELETE FROM operaciones WHERE id = ?', [id]);
-    res.json({ message: 'Operación eliminada' });
+    res.json({ message: 'Operación eliminada con éxito' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
