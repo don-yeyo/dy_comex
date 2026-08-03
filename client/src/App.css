@@ -36,9 +36,7 @@
   --drawer-footer: #0d2c5c;
 }
 
-[data-theme="dark"],
-.dark-theme,
-body.dark-theme {
+[data-theme="dark"] {
   --dy-blue: #38bdf8;
   --dy-red: #ff758f;
   --error: #fb7185;
@@ -2558,33 +2556,42 @@ body.modal-open {
   }
 }
 
-/* DESKTOP TABLE & GRID FIT (Sin recortes en la última columna) */
+/* DESKTOP TABLE & GRID FIT (Totalmente sin scroll horizontal en desktop) */
 @media (min-width: 769px) {
   .table-container {
     width: 100%;
-    overflow-x: auto;
+    max-width: 100%;
+    overflow-x: hidden;
     box-sizing: border-box;
   }
 
   table {
     width: 100%;
-    border-collapse: collapse;
+    max-width: 100%;
     table-layout: auto;
+    border-collapse: collapse;
   }
 
   th {
-    padding: 10px 8px;
-    font-size: 0.78rem;
+    padding: 10px 6px;
+    font-size: 0.76rem;
+    white-space: nowrap;
   }
 
   td {
-    padding: 10px 8px;
-    font-size: 0.83rem;
+    padding: 10px 6px;
+    font-size: 0.82rem;
+    word-break: break-word;
+  }
+
+  th:first-child,
+  td:first-child {
+    padding-left: 8px;
   }
 
   th:last-child,
   td:last-child {
-    padding-right: 14px;
+    padding-right: 8px;
   }
 
   td .badge {
@@ -2592,15 +2599,12 @@ body.modal-open {
   }
 }
 
-/* Subtítulos de paneles y títulos de modales en modo oscuro */
+/* Subtítulos de paneles y títulos de modales exclusivamente en modo oscuro */
 [data-theme="dark"] h4,
-[data-theme="dark"] .form-section-title,
-.dark-theme h4,
-.dark-theme .form-section-title {
+[data-theme="dark"] .form-section-title {
   color: #38bdf8 !important;
 }
 
-[data-theme="dark"] .modal-content label.form-label,
-.dark-theme .modal-content label.form-label {
+[data-theme="dark"] .modal-content label.form-label {
   color: #cbd5e1 !important;
 }
