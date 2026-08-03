@@ -2,7 +2,7 @@
 
 ComEx CRM es una herramienta de gestión de relaciones con clientes (CRM) y control de operaciones de Comercio Exterior diseñada específicamente para Don Yeyo S.A.
 
-Este proyecto cuenta con una arquitectura robusta y estética premium (soporte nativo para Modo Oscuro/Claro, Autenticación corporativa con Microsoft Azure AD, Agenda / Calendario Centralizado y control de Operaciones de Exportación).
+Este proyecto cuenta con una arquitectura robusta y estética premium (soporte nativo para Modo Oscuro/Claro, Autenticación corporativa con Microsoft Azure AD / Modo Demo, Cierre de sesión persistente, Agenda / Calendario Centralizado y control de Operaciones de Exportación).
 
 ---
 

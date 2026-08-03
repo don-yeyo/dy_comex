@@ -18,16 +18,25 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      // BYPASS DE AUTENTICACION PARA DESARROLLO LOCAL O DEPLOY SINS MSAL
-      if (import.meta.env.DEV && import.meta.env.VITE_MOCK_AUTH === 'true') {
+      // Si el usuario cerró sesión explícitamente en esta sesión, no re-autenticar de forma automática
+      const hasLoggedOut = sessionStorage.getItem('dy_logout') === 'true';
+      if (hasLoggedOut) {
+        setIsAuthenticated(false);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      // MODO MOCK ACTIVADO EXPLÍCITAMENTE VÍA VARIABLE DE ENTORNO
+      if (import.meta.env.VITE_MOCK_AUTH === 'true') {
         const mockEmail = import.meta.env.VITE_MOCK_AUTH_EMAIL || "gabrielt@donyeyo.com.ar";
         const mockName = import.meta.env.VITE_MOCK_AUTH_NAME || "Gabriel (Don Yeyo)";
 
-        console.log(`⚠️ MODO MOCK ACTIVADO: Entrando como ${mockEmail}`);
         setIsAuthenticated(true);
         setUser({
           name: mockName,
           email: mockEmail,
+          username: mockEmail,
           provider: 'mock'
         });
         setLoading(false);
@@ -47,6 +56,7 @@ export const AuthProvider = ({ children }) => {
         pendingUser = {
           name: accounts[0].name || accounts[0].idTokenClaims?.name || accounts[0].username,
           email: primaryEmail,
+          username: primaryEmail,
           provider: 'microsoft'
         };
       }
@@ -100,6 +110,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = () => {
     setAuthError(null);
+    sessionStorage.removeItem('dy_logout');
     if (inProgress === InteractionStatus.None) {
       instance.loginRedirect(loginRequest).catch(e => {
         console.error("[MSAL] Error en loginRedirect:", e);
@@ -111,25 +122,29 @@ export const AuthProvider = ({ children }) => {
   const loginMock = () => {
     const mockEmail = import.meta.env.VITE_MOCK_AUTH_EMAIL || "gabrielt@donyeyo.com.ar";
     const mockName = import.meta.env.VITE_MOCK_AUTH_NAME || "Gabriel (Don Yeyo)";
+    sessionStorage.removeItem('dy_logout');
     setIsAuthenticated(true);
     setUser({
       name: mockName,
       email: mockEmail,
+      username: mockEmail,
       provider: 'mock'
     });
     setAuthError(null);
   };
 
   const logout = () => {
-    if (user?.provider === 'microsoft' && isMsAuthenticated) {
+    sessionStorage.setItem('dy_logout', 'true');
+    const isMsUser = user?.provider === 'microsoft' && isMsAuthenticated;
+    setIsAuthenticated(false);
+    setUser(null);
+    setValidatedEmail(null);
+    if (isMsUser) {
       instance.logoutRedirect({
         postLogoutRedirectUri: window.location.origin,
       }).catch(e => {
-        console.error(e);
+        console.error("[MSAL] Error en logoutRedirect:", e);
       });
-    } else {
-      setIsAuthenticated(false);
-      setUser(null);
     }
   };
 
@@ -137,6 +152,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{
       isAuthenticated,
       user,
+      account: user,
       loading: loading || inProgress !== InteractionStatus.None,
       inProgress,
       authError,

@@ -1,111 +1,101 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import logo from '../assets/logo-don-yeyo-png-sin-fondo.png';
+import microsoftLogo from '../assets/microsoft-logo.png';
 import { useAuth } from '../config/AuthContext';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Sun, Moon } from 'lucide-react';
 
 export default function LoginScreen() {
   const { login, authError, loading } = useAuth();
+  const [theme, setTheme] = useState(() => localStorage.getItem('dy_theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    if (theme === 'dark') {
+      document.body.classList.add('dark-theme');
+    } else {
+      document.body.classList.remove('dark-theme');
+    }
+    localStorage.setItem('dy_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   return (
-    <div style={{
-      minHeight: '100vh',
+    <div className="glass login-container" style={{
+      height: '100vh',
       display: 'flex',
-      alignItems: 'center',
+      gap: '8px',
+      flexDirection: 'column',
       justifyContent: 'center',
-      background: 'linear-gradient(135deg, #071731 0%, #0d2c5c 50%, #1e3a8a 100%)',
-      padding: 20,
-      fontFamily: 'Inter, system-ui, sans-serif'
+      alignItems: 'center',
+      position: 'relative'
     }}>
-      <div style={{
-        background: '#ffffff',
-        width: '100%',
-        maxWidth: 440,
-        borderRadius: 20,
-        boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-        padding: '40px 32px',
-        textAlign: 'center',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* Top Decorative Line */}
-        <div style={{
+      {/* Botón de cambio de tema en el login */}
+      <button
+        onClick={toggleTheme}
+        className="mode-toggle"
+        style={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 6,
-          background: 'linear-gradient(90deg, #0d2c5c 0%, #e40521 100%)'
-        }} />
+          top: '24px',
+          right: '24px',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-sm)'
+        }}
+        title="Cambiar modo"
+      >
+        {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+      </button>
 
-        {/* Don Yeyo Logo */}
-        <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>
-          <img src={logo} alt="Don Yeyo S.A." style={{ height: 60, objectFit: 'contain' }} />
-        </div>
+      <img src={logo} alt="Don Yeyo" style={{ height: '140px', marginBottom: '16px', objectFit: 'contain' }} />
 
-        <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0d2c5c', margin: '0 0 6px 0' }}>
-          ComEx CRM
-        </h1>
-        <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 28px 0', lineHeight: 1.4 }}>
-          Sistema de Gestión de Comercio Exterior & Exportaciones
-        </p>
+      <h1 style={{ fontWeight: '800', color: 'var(--header-text)', margin: 0 }}>
+        ComEx CRM
+      </h1>
 
-        {authError && (
-          <div style={{
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            color: '#991b1b',
-            padding: '12px 16px',
-            borderRadius: 12,
-            fontSize: '0.82rem',
-            textAlign: 'left',
-            marginBottom: 20,
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 10
-          }}>
-            <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 2, color: '#dc2626' }} />
-            <div>
-              <strong>Acceso denegado:</strong> {authError}
-            </div>
+      <p style={{ color: 'var(--text-muted)', maxWidth: '400px', margin: '16px 0 32px 0', fontSize: '1.1rem' }}>
+        Bienvenido. Inicie sesión con su cuenta corporativa o personal registrada en la empresa.
+      </p>
+
+      {authError && (
+        <div style={{
+          background: 'rgba(239,68,68,0.1)',
+          border: '1px solid var(--dy-red)',
+          color: 'var(--dy-red)',
+          padding: '12px 16px',
+          borderRadius: 12,
+          fontSize: '0.88rem',
+          textAlign: 'center',
+          marginBottom: 20,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          maxWidth: 320
+        }}>
+          <AlertTriangle size={18} style={{ flexShrink: 0, color: 'var(--dy-red)' }} />
+          <div>
+            <strong>Acceso denegado:</strong> {authError}
           </div>
-        )}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* Microsoft Auth Button */}
-          <button
-            onClick={login}
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '14px 20px',
-              borderRadius: 12,
-              background: '#0d2c5c',
-              color: '#ffffff',
-              border: 'none',
-              fontSize: '0.92rem',
-              fontWeight: 600,
-              cursor: loading ? 'wait' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12,
-              boxShadow: '0 4px 12px rgba(13, 44, 92, 0.25)',
-              transition: 'transform 0.15s, background 0.15s'
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = '#0a234a'}
-            onMouseLeave={e => e.currentTarget.style.background = '#0d2c5c'}
-          >
-            {/* SVG Microsoft Logo */}
-            <svg width="20" height="20" viewBox="0 0 23 23">
-              <path fill="#f35325" d="M1 1h10v10H1z"/>
-              <path fill="#81bc06" d="M12 1h10v10H12z"/>
-              <path fill="#05a6f0" d="M1 12h10v10H1z"/>
-              <path fill="#ffba08" d="M12 12h10v10H12z"/>
-            </svg>
-            <span>Iniciar sesión con Microsoft</span>
-          </button>
         </div>
+      )}
+
+      <div className="login-options">
+        <button
+          className="btn-microsoft"
+          onClick={login}
+          disabled={loading}
+        >
+          <img
+            src={microsoftLogo}
+            alt="Microsoft"
+            style={{ height: '26px', width: '26px', objectFit: 'contain' }}
+          />
+          Inicia sesión con Microsoft
+        </button>
       </div>
     </div>
   );
 }
+
