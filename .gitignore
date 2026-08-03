@@ -50,3 +50,6 @@ docs/MANUAL_USUARIO.pdf
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+docs/migration_2026-08-03.sql
+docs/PROD_dump-Comex-202608031521.sql
+docs/dump-dy_comex-202608031516.sql

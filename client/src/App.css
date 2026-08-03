@@ -2430,8 +2430,59 @@ body.modal-open {
 }
 
 [data-theme="dark"] .calc-total-box {
-  background: var(--primary);
+  background: #0369a1;
   color: #ffffff;
+  border: 1px solid #38bdf8;
+}
+
+[data-theme="dark"] .calc-total-box .calc-total-title,
+[data-theme="dark"] .calc-total-box .calc-total-amount,
+[data-theme="dark"] .calc-total-box div {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .calc-line .calc-label {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .calc-line .calc-value {
+  color: #f8fafc;
+}
+
+.calc-saved-item {
+  background: var(--surface-hover);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.calc-saved-amount {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--dy-blue);
+}
+
+.calc-saved-unit {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.calc-cif-value {
+  color: var(--dy-blue);
+  font-weight: 700;
+}
+
+[data-theme="dark"] .calc-cif-value {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .calc-saved-amount {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .calc-saved-unit {
+  color: #cbd5e1 !important;
 }
 
 .calc-total-title {

@@ -20,6 +20,7 @@ import ProductAutocomplete from './components/ProductAutocomplete';
 import ProImageUploader from './components/ProImageUploader';
 import LoginScreen from './components/LoginScreen';
 import DbConnectionGuard from './components/DbConnectionGuard';
+import CountryFlag, { resolveIsoCode, emojiToIso } from './components/CountryFlag';
 import { useAuth } from './config/AuthContext';
 import './App.css';
 
@@ -1827,7 +1828,7 @@ export default function App() {
                             </span>
                           )}
                           {prioridadBadge(t.prioridad)}
-                          {t.pais_nombre && <span>📍 {t.pais_nombre}</span>}
+                          {t.pais_nombre && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CountryFlag countryName={t.pais_nombre} size={14} /> {t.pais_nombre}</span>}
                           {t.asignado && <span>👤 {t.asignado}</span>}
                         </div>
                         {t.notas && (
@@ -1892,7 +1893,12 @@ export default function App() {
                             {c.empresa && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.empresa}</div>}
                           </td>
                           <td><span className="badge badge-navy">{c.rol || 'Otro'}</span></td>
-                          <td>{c.pais_nombre || '—'} {c.ciudad ? `(${c.ciudad})` : ''}</td>
+                          <td>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <CountryFlag countryName={c.pais_nombre} size={16} />
+                              <span>{c.pais_nombre || '—'} {c.ciudad ? `(${c.ciudad})` : ''}</span>
+                            </div>
+                          </td>
                           <td style={{ fontSize: '0.8rem' }}>
                             {c.email && <div>✉️ {c.email}</div>}
                             {c.telefono && <div>📞 {c.telefono}</div>}
@@ -2043,7 +2049,12 @@ export default function App() {
                             <strong>{o.nombre}</strong>
                             {o.contacto_nombre && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>👤 {o.contacto_nombre}</div>}
                           </td>
-                          <td>{o.pais_bandera || ''} {o.pais_nombre || '—'}</td>
+                          <td>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <CountryFlag countryName={o.pais_nombre} bandera={o.pais_bandera} size={18} />
+                              <span>{o.pais_nombre || '—'}</span>
+                            </div>
+                          </td>
                           <td><span className="badge badge-navy">{o.marca === 'Otro' ? (o.marca_otra || 'Otro') : o.marca}</span></td>
                           <td>{etapaBadge(o.etapa)}</td>
                           <td><span className="badge badge-secondary" style={{ fontWeight: 700 }}>{o.probabilidad || '50%'}</span></td>
@@ -2107,7 +2118,12 @@ export default function App() {
                             <strong>{op.cliente_nombre || 'Cliente sin asignar'}</strong>
                             {op.cliente_empresa && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{op.cliente_empresa}</div>}
                           </td>
-                          <td>{op.pais_bandera || ''} {op.pais_nombre || '—'}</td>
+                          <td>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <CountryFlag countryName={op.pais_nombre} bandera={op.pais_bandera} size={18} />
+                              <span>{op.pais_nombre || '—'}</span>
+                            </div>
+                          </td>
                           <td>{estadoBadge(op.estado)}</td>
                           <td style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)' }}>
                             📅 {fmtDate(op.fecha_entrega)}
@@ -2160,19 +2176,22 @@ export default function App() {
                       if (Array.isArray(parsed)) {
                         prods = parsed.map(p => typeof p === 'string' ? { nombre: p } : p);
                       } else { prods = [{ nombre: String(m.producto) }]; }
-                    } catch { prods = [{ nombre: String(m.producto) }]; }
-
-                    const sampleTitle = [
-                      m.destinatario || m.contacto_nombre,
-                      m.pais_nombre,
-                      fmtDate(m.fecha)
-                    ].filter(Boolean).join(' · ') || 'Muestra sin destinatario';
+                    } catch {
+                      prods = [{ nombre: String(m.producto) }];
+                    }
+                    const sampleTitle = m.destinatario || m.contacto_nombre || 'Muestra sin destinatario';
 
                     return (
                       <div key={m.id} className="sample-row">
                         <div className="sample-row-main" style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)' }}>
-                            {sampleTitle}
+                          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span>{sampleTitle}</span>
+                            {m.pais_nombre && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                • <CountryFlag countryName={m.pais_nombre} size={15} /> {m.pais_nombre}
+                              </span>
+                            )}
+                            {m.fecha && <span>• {fmtDate(m.fecha)}</span>}
                           </div>
                           <div className="product-tags" style={{ marginTop: 6 }}>
                             {prods.map((p, i) => (
@@ -2247,7 +2266,7 @@ export default function App() {
                   paises.map(p => (
                     <div key={p.id} className="country-card">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div style={{ fontSize: 32 }}>{p.bandera || '🌐'}</div>
+                        <div style={{ fontSize: 32 }}><CountryFlag countryName={p.nombre} bandera={p.bandera} size={38} /></div>
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button className="icon-btn" onClick={() => openEdit('pais', p)} title="Editar"><Edit size={14} /></button>
                           <button className="icon-btn" onClick={() => requestDelete('paises', p.id, p.nombre)} title="Eliminar"><Trash2 size={14} /></button>
@@ -2268,6 +2287,8 @@ export default function App() {
               </div>
             </div>
           )}
+
+
 
           {/* ===== INTELIGENCIA ===== */}
           {!loading && activeTab === 'inteligencia' && (
@@ -2322,7 +2343,12 @@ export default function App() {
                         filteredPreciosSorted.map(p => (
                           <tr key={p.id}>
                             <td><strong>{p.competidor}</strong>{p.producto && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{p.producto}</div>}</td>
-                            <td>{p.pais_nombre || '—'}</td>
+                            <td>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                <CountryFlag countryName={p.pais_nombre} size={16} />
+                                <span>{p.pais_nombre || '—'}</span>
+                              </div>
+                            </td>
                             <td><span className="badge badge-navy">{p.categoria || '—'}</span></td>
                             <td style={{ fontWeight: 500 }}>{p.precio > 0 ? `$${parseFloat(p.precio).toLocaleString()}` : '—'}</td>
                             <td>{p.unidad || '—'}</td>
@@ -2454,7 +2480,16 @@ export default function App() {
                               <strong>{c.descripcion}</strong>
                               {c.marca && <span className="badge badge-navy" style={{ marginLeft: 6, fontSize: '0.68rem' }}>{c.marca}</span>}
                             </td>
-                            <td>{c.cliente_nombre || '—'} {c.pais_nombre ? `(${c.pais_nombre})` : ''}</td>
+                            <td>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <span>{c.cliente_nombre || '—'}</span>
+                                {c.pais_nombre && (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                    (<CountryFlag countryName={c.pais_nombre} size={14} /> {c.pais_nombre})
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             <td style={{ fontWeight: 600 }}>${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                             <td style={{ color: 'var(--success)', fontWeight: 600 }}>${cobrado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                             <td style={{ color: saldo > 0 ? 'var(--dy-red)' : 'var(--text-muted)', fontWeight: 600 }}>
@@ -2490,24 +2525,25 @@ export default function App() {
                 <form onSubmit={handleSaveCalc}>
                   <div className="form-group">
                     <label className="form-label">Producto / Descripción</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      list="calc-prod-list"
-                      placeholder="Ej: Tapas Don Yeyo 330g"
+                    <ProductAutocomplete
                       value={calcForm.producto}
-                      onChange={e => setCalcForm(prev => ({ ...prev, producto: e.target.value }))}
+                      onChange={val => setCalcForm(prev => ({ ...prev, producto: val }))}
+                      onSelect={prod => {
+                        if (prod) {
+                          setCalcForm(prev => ({ ...prev, producto: prod.nombre || prod.descripcion || '' }));
+                        }
+                      }}
+                      productos={productosFinnegans && productosFinnegans.length > 0 ? productosFinnegans : productosCatalogo}
+                      placeholder="Escribí para buscar en el catálogo Finnegans ERP (ej: Tapas 330g)..."
                     />
-                    <datalist id="calc-prod-list">
-                      {productosCatalogo.map((p, idx) => (
-                        <option key={idx} value={p.nombre || p.descripcion} />
-                      ))}
-                    </datalist>
                   </div>
 
                   <div className="form-grid-2">
                     <div className="form-group">
-                      <label className="form-label">País Destino</label>
+                      <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>País Destino</span>
+                        {calcForm.pais_id && <CountryFlag countryName={paises.find(p => String(p.id) === String(calcForm.pais_id))?.nombre} size={18} />}
+                      </label>
                       <select
                         className="form-input"
                         value={calcForm.pais_id}
@@ -2522,9 +2558,10 @@ export default function App() {
                         }}
                       >
                         <option value="">Selecciona país...</option>
-                        {paises.map(p => (
-                          <option key={p.id} value={p.id}>{p.bandera ? `${p.bandera} ` : ''}{p.nombre}</option>
-                        ))}
+                        {paises.map(p => {
+                          const iso = resolveIsoCode(p.nombre, p.bandera)?.toUpperCase() || '🌐';
+                          return <option key={p.id} value={p.id}>[{iso} {p.bandera || ''}] {p.nombre}</option>;
+                        })}
                       </select>
                     </div>
 
@@ -2629,38 +2666,38 @@ export default function App() {
                   <div className="calc-result-box">
                     <div className="calc-line">
                       <span className="calc-label">Valor FOB Total ({calcQty} u.)</span>
-                      <span className="calc-value">${totalFOB.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+                      <span className="calc-value">USD {totalFOB.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="calc-line">
                       <span className="calc-label">Flete internacional</span>
-                      <span className="calc-value">${calcFlete.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+                      <span className="calc-value">USD {calcFlete.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="calc-line">
                       <span className="calc-label">Seguro</span>
-                      <span className="calc-value">${calcSeguro.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+                      <span className="calc-value">USD {calcSeguro.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="calc-line">
                       <span className="calc-label">Valor CIF Total</span>
-                      <span className="calc-value" style={{ color: 'var(--dy-blue)', fontWeight: 700 }}>${cifValue.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+                      <span className="calc-value calc-cif-value">USD {cifValue.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="calc-line">
                       <span className="calc-label">Arancel Destino ({calcArancelPct}%)</span>
-                      <span className="calc-value">${arancelUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+                      <span className="calc-value">USD {arancelUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="calc-line">
                       <span className="calc-label">Otros gastos en destino</span>
-                      <span className="calc-value">${calcOtros.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+                      <span className="calc-value">USD {calcOtros.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
 
                     <div className="calc-total-box">
                       <div>
-                        <div className="calc-total-title">Costo Landed Total</div>
-                        <div style={{ fontSize: '0.78rem', opacity: 0.85, marginTop: 2 }}>
-                          Unitario: ${landedUnitario.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD / u.
+                        <div className="calc-total-title" style={{ color: '#ffffff' }}>Costo Landed Total</div>
+                        <div style={{ fontSize: '0.78rem', color: '#ffffff', opacity: 0.9, marginTop: 2 }}>
+                          Unitario: USD {landedUnitario.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / u.
                         </div>
                       </div>
-                      <div className="calc-total-amount">
-                        ${landedTotal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                      <div className="calc-total-amount" style={{ color: '#ffffff' }}>
+                        USD {landedTotal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
                   </div>
@@ -2694,37 +2731,40 @@ export default function App() {
                     {calculos.map(c => {
                       const pObj = paises.find(p => String(p.id) === String(c.pais_id));
                       const unitVal = c.qty > 0 ? (parseFloat(c.landed) / parseFloat(c.qty)) : 0;
+                      const countryNameLabel = pObj?.nombre || c.pais_nombre;
                       return (
-                        <div key={c.id} style={{ background: 'var(--surface-hover)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                        <div key={c.id} className="calc-saved-item">
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                             <div>
                               <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)' }}>
                                 {c.producto || 'Cálculo sin nombre'}
                               </div>
                               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                                {pObj ? (
-                                  <span>{pObj.bandera ? `${pObj.bandera} ` : ''}{pObj.nombre}</span>
+                                {countryNameLabel ? (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                    <CountryFlag countryName={countryNameLabel} size={15} /> {countryNameLabel}
+                                  </span>
                                 ) : (
-                                  <span>{c.pais_nombre || 'Sin país'}</span>
+                                  <span>Sin país</span>
                                 )}
                                 <span>•</span>
                                 <span>{fmtDate(c.fecha)}</span>
                               </div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--dy-blue)' }}>
-                                ${parseFloat(c.landed || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                              <div className="calc-saved-amount">
+                                USD {parseFloat(c.landed || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                                ${unitVal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD / u.
+                              <div className="calc-saved-unit">
+                                USD {unitVal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / u.
                               </div>
                             </div>
                           </div>
 
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--surface)', padding: '8px 12px', borderRadius: '8px', marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                            <span>FOB: <strong>${parseFloat(c.fob || 0).toLocaleString()}</strong></span>
+                            <span>FOB: <strong>USD {parseFloat(c.fob || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
                             <span>Cant: <strong>{c.qty || 1} u.</strong></span>
-                            <span>Flete: <strong>${parseFloat(c.flete || 0).toLocaleString()}</strong></span>
+                            <span>Flete: <strong>USD {parseFloat(c.flete || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
                             <span>Arancel: <strong>{c.arancel || 0}%</strong></span>
                           </div>
 
@@ -2837,7 +2877,19 @@ export default function App() {
                         <div className="form-group"><label className="form-label">Rol</label><select className="form-input" value={fv('rol') || 'Importador'} onChange={e => setFv('rol', e.target.value)}><option>Importador</option><option>Distribuidor</option><option>Broker</option><option>Retailer</option><option>Otro</option></select></div>
                       </div>
                       <div className="form-grid-2">
-                        <div className="form-group"><label className="form-label">País</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => { const p = paises.find(x => String(x.id) === String(e.target.value)); setFv('pais_id', e.target.value || null); setFv('pais_nombre', p ? p.nombre : ''); }}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>País</span>
+                            {fv('pais_nombre') && <CountryFlag countryName={fv('pais_nombre')} size={18} />}
+                          </label>
+                          <select className="form-input" value={fv('pais_id') || ''} onChange={e => { const p = paises.find(x => String(x.id) === String(e.target.value)); setFv('pais_id', e.target.value || null); setFv('pais_nombre', p ? p.nombre : ''); }}>
+                            <option value="">Selecciona país...</option>
+                            {paises.map(p => {
+                              const iso = resolveIsoCode(p.nombre, p.bandera)?.toUpperCase() || '🌐';
+                              return <option key={p.id} value={p.id}>[{iso} {p.bandera || ''}] {p.nombre}</option>;
+                            })}
+                          </select>
+                        </div>
                         <div className="form-group"><label className="form-label">Ciudad</label><input type="text" className="form-input" value={fv('ciudad')} onChange={e => setFv('ciudad', e.target.value)} /></div>
                       </div>
                       <div className="form-grid-2">
@@ -2979,7 +3031,10 @@ export default function App() {
                           </select>
                         </div>
                         <div className="form-group">
-                          <label className="form-label">País de destino (opcional)</label>
+                          <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>País de destino (opcional)</span>
+                            {fv('pais_nombre') && <CountryFlag countryName={fv('pais_nombre')} size={18} />}
+                          </label>
                           <select
                             className="form-input"
                             value={fv('pais_id') || ''}
@@ -2991,11 +3046,14 @@ export default function App() {
                             }}
                           >
                             <option value="">Selecciona país (opcional)...</option>
-                            {paises.map(p => (
-                              <option key={p.id} value={p.id}>
-                                {p.bandera ? `${p.bandera} ` : ''}{p.nombre}
-                              </option>
-                            ))}
+                            {paises.map(p => {
+                              const iso = resolveIsoCode(p.nombre, p.bandera)?.toUpperCase() || '🌐';
+                              return (
+                                <option key={p.id} value={p.id}>
+                                  [{iso} {p.bandera || ''}] {p.nombre}
+                                </option>
+                              );
+                            })}
                           </select>
                         </div>
                       </div>
@@ -3078,7 +3136,19 @@ export default function App() {
                       <div className="form-group"><label className="form-label">Número de pedido *</label><input type="text" className="form-input" required value={fv('numero_pedido')} onChange={e => setFv('numero_pedido', e.target.value)} placeholder="Ej: PED-2026-089" /></div>
                       <div className="form-grid-2">
                         <div className="form-group"><label className="form-label">Cliente activo CRM</label><select className="form-input" value={fv('cliente_id') || ''} onChange={e => setFv('cliente_id', e.target.value || null)}><option value="">Selecciona...</option>{contactos.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido || ''} ({c.empresa || 'Empresa'})</option>)}</select></div>
-                        <div className="form-group"><label className="form-label">País destino</label><select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}><option value="">Selecciona...</option>{paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>País destino</span>
+                            {fv('pais_id') && <CountryFlag countryName={paises.find(p => String(p.id) === String(fv('pais_id')))?.nombre} size={18} />}
+                          </label>
+                          <select className="form-input" value={fv('pais_id') || ''} onChange={e => { const val = e.target.value || null; const p = paises.find(x => String(x.id) === String(val)); setFv('pais_id', val); setFv('pais_nombre', p ? p.nombre : ''); }}>
+                            <option value="">Selecciona país...</option>
+                            {paises.map(p => {
+                              const iso = resolveIsoCode(p.nombre, p.bandera)?.toUpperCase() || '🌐';
+                              return <option key={p.id} value={p.id}>[{iso} {p.bandera || ''}] {p.nombre}</option>;
+                            })}
+                          </select>
+                        </div>
                       </div>
                       <div className="form-grid-2">
                         <div className="form-group"><label className="form-label">Estado</label><select className="form-input" value={fv('estado') || 'Pedido recibido'} onChange={e => setFv('estado', e.target.value)}><option>Pedido recibido</option><option>En proceso</option><option>Despachado</option></select></div>
@@ -3228,10 +3298,16 @@ export default function App() {
                       </div>
                       <div className="form-grid-3">
                         <div className="form-group">
-                          <label className="form-label">País Destino</label>
-                          <select className="form-input" value={fv('pais_id') || ''} onChange={e => setFv('pais_id', e.target.value || null)}>
-                            <option value="">Selecciona...</option>
-                            {paises.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                          <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>País Destino</span>
+                            {fv('pais_id') && <CountryFlag countryName={paises.find(p => String(p.id) === String(fv('pais_id')))?.nombre} size={18} />}
+                          </label>
+                          <select className="form-input" value={fv('pais_id') || ''} onChange={e => { const val = e.target.value || null; const p = paises.find(x => String(x.id) === String(val)); setFv('pais_id', val); setFv('pais_nombre', p ? p.nombre : ''); }}>
+                            <option value="">Selecciona país...</option>
+                            {paises.map(p => {
+                              const iso = resolveIsoCode(p.nombre, p.bandera)?.toUpperCase() || '🌐';
+                              return <option key={p.id} value={p.id}>[{iso} {p.bandera || ''}] {p.nombre}</option>;
+                            })}
                           </select>
                         </div>
                         <div className="form-group">
@@ -3267,11 +3343,38 @@ export default function App() {
                       <div className="form-grid-2">
                         <div className="form-group">
                           <label className="form-label">País *</label>
-                          <input type="text" className="form-input" required value={fv('nombre')} onChange={e => setFv('nombre', e.target.value)} placeholder="Ej: Brasil" />
+                          <input
+                            type="text"
+                            className="form-input"
+                            required
+                            value={fv('nombre')}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setFv('nombre', val);
+                              const iso = resolveIsoCode(val, '');
+                              if (iso) {
+                                const emoji = String.fromCodePoint(iso.charCodeAt(0) - 97 + 0x1F1E6) + String.fromCodePoint(iso.charCodeAt(1) - 97 + 0x1F1E6);
+                                setFv('bandera', emoji);
+                              }
+                            }}
+                            placeholder="Ej: Brasil, Argentina, Chile..."
+                          />
                         </div>
                         <div className="form-group">
-                          <label className="form-label">Bandera emoji</label>
-                          <input type="text" className="form-input" value={fv('bandera')} onChange={e => setFv('bandera', e.target.value)} placeholder="🇧🇷" />
+                          <label className="form-label">Bandera (Vista Previa HD)</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 42 }}>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={fv('bandera')}
+                              onChange={e => setFv('bandera', e.target.value)}
+                              placeholder="🇦🇷 o AR"
+                              style={{ flex: 1 }}
+                            />
+                            <div style={{ padding: '4px 10px', background: 'var(--surface-hover)', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 6, height: 38 }}>
+                              <CountryFlag countryName={fv('nombre')} bandera={fv('bandera')} size={26} />
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -3351,7 +3454,10 @@ export default function App() {
 
                       <div className="form-grid-2">
                         <div className="form-group">
-                          <label className="form-label">País relevamiento (opcional)</label>
+                          <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>País relevamiento (opcional)</span>
+                            {fv('pais_nombre') && <CountryFlag countryName={fv('pais_nombre')} size={18} />}
+                          </label>
                           <select
                             className="form-input"
                             value={fv('pais_id') || ''}
@@ -3363,11 +3469,14 @@ export default function App() {
                             }}
                           >
                             <option value="">Selecciona país (opcional)...</option>
-                            {paises.map(p => (
-                              <option key={p.id} value={p.id}>
-                                {p.bandera ? `${p.bandera} ` : ''}{p.nombre}
-                              </option>
-                            ))}
+                            {paises.map(p => {
+                              const iso = resolveIsoCode(p.nombre, p.bandera)?.toUpperCase() || '🌐';
+                              return (
+                                <option key={p.id} value={p.id}>
+                                  [{iso} {p.bandera || ''}] {p.nombre}
+                                </option>
+                              );
+                            })}
                           </select>
                         </div>
                         <div className="form-group">
@@ -3480,7 +3589,10 @@ export default function App() {
                           </select>
                         </div>
                         <div className="form-group">
-                          <label className="form-label">País destino</label>
+                          <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>País destino</span>
+                            {fv('pais_nombre') && <CountryFlag countryName={fv('pais_nombre')} size={18} />}
+                          </label>
                           <select
                             className="form-input"
                             value={fv('pais_id') || ''}
@@ -3492,11 +3604,14 @@ export default function App() {
                             }}
                           >
                             <option value="">Selecciona país (opcional)...</option>
-                            {paises.map(p => (
-                              <option key={p.id} value={p.id}>
-                                {p.bandera ? `${p.bandera} ` : ''}{p.nombre}
-                              </option>
-                            ))}
+                            {paises.map(p => {
+                              const iso = resolveIsoCode(p.nombre, p.bandera)?.toUpperCase() || '🌐';
+                              return (
+                                <option key={p.id} value={p.id}>
+                                  [{iso} {p.bandera || ''}] {p.nombre}
+                                </option>
+                              );
+                            })}
                           </select>
                         </div>
                       </div>
