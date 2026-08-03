@@ -36,7 +36,10 @@
   --drawer-footer: #0d2c5c;
 }
 
-[data-theme="dark"] {
+[data-theme="dark"],
+.dark-theme,
+body.dark-theme {
+  --dy-blue: #38bdf8;
   --dy-red: #ff758f;
   --error: #fb7185;
   --background: #0f172a;
@@ -45,7 +48,7 @@
   --text: #f8fafc;
   --text-muted: #94a3b8;
   --primary: #f8fafc;
-  --primary-active: var(--dy-blue);
+  --primary-active: #38bdf8;
   --border: #334155;
   --glass: rgba(30, 41, 59, 0.7);
   --glass-border: rgba(255, 255, 255, 0.1);
@@ -56,8 +59,8 @@
   --switch-track-active: #f8fafc;
   --switch-thumb: #0d2c5c;
   --header-text: #f8fafc;
-  --drawer-title: #94a3b8;
-  --drawer-footer: #94a3b8;
+  --drawer-title: #f8fafc;
+  --drawer-footer: #f8fafc;
 
   color-scheme: dark;
 }
@@ -2212,6 +2215,25 @@ body.modal-open {
   align-items: center;
 }
 
+.calendar-day-count {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: var(--dy-blue);
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme="dark"] .calendar-day-count {
+  background: #2563eb;
+  color: #ffffff;
+}
+
 .calendar-event-badge {
   font-size: 0.72rem;
   padding: 3px 6px;
@@ -2255,6 +2277,12 @@ body.modal-open {
   color: #0284c7;
   border-left: 3px solid #0284c7;
 }
+
+[data-theme="dark"] .event-tarea { background: rgba(59, 130, 246, 0.25); color: #93c5fd; border-left: 3px solid #60a5fa; }
+[data-theme="dark"] .event-visita { background: rgba(16, 185, 129, 0.25); color: #86efac; border-left: 3px solid #34d399; }
+[data-theme="dark"] .event-contacto { background: rgba(245, 158, 11, 0.25); color: #fcd34d; border-left: 3px solid #fbbf24; }
+[data-theme="dark"] .event-muestra { background: rgba(168, 85, 247, 0.25); color: #c4b5fd; border-left: 3px solid #a78bfa; }
+[data-theme="dark"] .event-operacion { background: rgba(14, 165, 233, 0.25); color: #7dd3fc; border-left: 3px solid #38bdf8; }
 
 /* Timeline Agenda */
 .agenda-timeline {
@@ -2528,4 +2556,51 @@ body.modal-open {
     text-align: center;
     gap: 12px;
   }
+}
+
+/* DESKTOP TABLE & GRID FIT (Sin recortes en la última columna) */
+@media (min-width: 769px) {
+  .table-container {
+    width: 100%;
+    overflow-x: auto;
+    box-sizing: border-box;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+  }
+
+  th {
+    padding: 10px 8px;
+    font-size: 0.78rem;
+  }
+
+  td {
+    padding: 10px 8px;
+    font-size: 0.83rem;
+  }
+
+  th:last-child,
+  td:last-child {
+    padding-right: 14px;
+  }
+
+  td .badge {
+    white-space: nowrap;
+  }
+}
+
+/* Subtítulos de paneles y títulos de modales en modo oscuro */
+[data-theme="dark"] h4,
+[data-theme="dark"] .form-section-title,
+.dark-theme h4,
+.dark-theme .form-section-title {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .modal-content label.form-label,
+.dark-theme .modal-content label.form-label {
+  color: #cbd5e1 !important;
 }

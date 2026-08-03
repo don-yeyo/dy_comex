@@ -39,8 +39,8 @@ dy_comex/
 | Módulo | Descripción |
 |---|---|
 | **Dashboard** | Métricas clave, Funnel Comercial / Ventas por etapa de clientes, tareas urgentes y valor total de operaciones. |
-| **Agenda / Calendario** | **[NUEVO]** Vista centralizada mensual (grid) y lista cronológica (timeline) que consolida tareas, visitas, próximas acciones, envíos de muestras y entregas de operaciones. |
-| **Tareas** | Gestión de tareas con asignación de hora específica (`HH:mm`), prioridad, fecha límite y ordenamiento por fecha/hora/prioridad. |
+| **Agenda / Calendario** | **[NUEVO]** Vista centralizada mensual (grid) y lista cronológica (timeline) que consolida tareas, visitas, próximas acciones, envíos de muestras y entregas de operaciones. Incluye badges de conteo y eventos con contraste optimizado para modo oscuro. |
+| **Tareas** | Gestión de tareas con asignación de hora específica (`HH:mm`), prioridad, fecha límite y ordenamiento multi-nivel jerárquico (**Estado -> Prioridad -> Fecha Límite -> Hora Inicio**), conservación completa de metadatos al resolver, ordenamiento por columnas recordado individualmente por pantalla en `localStorage` y diseño de grillas ajustado a desktop sin scroll horizontal. |
 | **Contactos** | Base de clientes con estados (*Activo*, *En proceso*, *Prospecto*, *Inactivo*, *Descartado*), Etapa Comercial (*Primer contacto*, *Reunión exploratoria*, *Cotización*, *Negociación*, *Habilitación regulatoria*) y creación automática de tareas a partir de *Próxima Acción*. |
 | **Visitas / Reuniones** | Registro de ferias y viajes multidía con fecha fin y hora, reuniones individuales agrupadas, selección de cliente registrado, seguimiento de *Contactos calificados* y adjuntos Excel. |
 | **Oportunidades** | Registro con marca personalizada (*Otro*), categoría libre (*Nuevo desarrollo*), *Inversión necesaria*, asignación de *Responsable* y etapas (*En análisis*, *En proceso*, *Finalizado*, *Descartado*). |

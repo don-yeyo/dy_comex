@@ -30,8 +30,8 @@ test.describe('03 - Flujo E2E Tareas y Sincronización en DB', () => {
     expect(taskInDB.status).toBe('pendiente');
 
     // 2. Alternar Estado a Hecha
-    const taskRow = page.locator(`tr:has-text("${taskTitle}")`);
-    await taskRow.locator('input[type="checkbox"]').click();
+    const taskCard = page.locator(`.task-item:has-text("${taskTitle}")`);
+    await taskCard.locator('input[type="checkbox"]').click();
 
     // Verificación en DB
     await page.waitForTimeout(500);
@@ -42,12 +42,12 @@ test.describe('03 - Flujo E2E Tareas y Sincronización en DB', () => {
     expect(taskInDB.status).toBe('hecha');
 
     // 3. Eliminación con Modal
-    await taskRow.locator('button.icon-btn').last().click();
+    await taskCard.locator('button[title="Eliminar"]').click();
     await expect(page.locator('text=Confirmar eliminación')).toBeVisible();
-    await page.locator('button:has-text("Eliminar")').click();
+    await page.locator('.modal-footer button:has-text("Eliminar")').click();
 
     // Verificación Eliminación en UI
-    await expect(page.locator(`tr:has-text("${taskTitle}")`)).toHaveCount(0, { timeout: 10000 });
+    await expect(page.locator(`.task-item:has-text("${taskTitle}")`)).toHaveCount(0, { timeout: 10000 });
 
     // Verificación Eliminación en DB
     apiRes = await request.get(`${API_BASE_URL}/tareas`);

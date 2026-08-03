@@ -314,17 +314,35 @@ export default function App() {
   const { account, isAuthenticated, logout } = useAuth();
   const [theme, setTheme] = useState(() => localStorage.getItem('dy_theme') || 'light');
 
-  // Estado de Ordenamiento por Columnas en Grillas
-  const [sortField, setSortField] = useState(null);
-  const [sortDirection, setSortDirection] = useState('asc');
+  // Estado de Ordenamiento por Columnas en Grillas (recordado por pantalla en localStorage)
+  const [sortsByTab, setSortsByTab] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dy_sorts_by_tab');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  // Estado de Navegación por Pestañas y Hash URL para Favoritos
+  const [activeTab, setActiveTab] = useState(() => {
+    const hash = window.location.hash.replace('#', '');
+    const validTabs = ['dashboard', 'tareas', 'agenda', 'contactos', 'visitas', 'oportunidades', 'operaciones', 'muestras', 'paises', 'inteligencia', 'cobranzas', 'calculadora', 'alertas'];
+    return validTabs.includes(hash) ? hash : 'dashboard';
+  });
+
+  const activeSort = sortsByTab[activeTab] || { field: null, dir: 'asc' };
+  const sortField = activeSort.field;
+  const sortDirection = activeSort.dir;
 
   const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
+    setSortsByTab(prev => {
+      const current = prev[activeTab] || { field: null, dir: 'asc' };
+      const nextDir = current.field === field && current.dir === 'asc' ? 'desc' : 'asc';
+      const updated = { ...prev, [activeTab]: { field, dir: nextDir } };
+      localStorage.setItem('dy_sorts_by_tab', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const sortData = useCallback((data, field, direction) => {
@@ -365,12 +383,6 @@ export default function App() {
     </th>
   );
 
-  // Estado de Navegación por Pestañas y Hash URL para Favoritos
-  const [activeTab, setActiveTab] = useState(() => {
-    const hash = window.location.hash.replace('#', '');
-    const validTabs = ['dashboard', 'tareas', 'agenda', 'contactos', 'visitas', 'oportunidades', 'operaciones', 'muestras', 'paises', 'inteligencia', 'cobranzas', 'calculadora', 'alertas'];
-    return validTabs.includes(hash) ? hash : 'dashboard';
-  });
   const [subTab, setSubTab] = useState('muestras');
   const [intelTab, setIntelTab] = useState('precios');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -410,8 +422,8 @@ export default function App() {
 
   // Filtros de búsqueda global e inteligencia
   const [globalSearch, setGlobalSearch] = useState('');
-  const [intelFilterPais, setIntelFilterPais] = useState('');
-  const [intelFilterMarca, setIntelFilterMarca] = useState('');
+  const [intelFilterPais, setIntelFilterPais] = useState(() => localStorage.getItem('dy_filter_intel_pais') || '');
+  const [intelFilterMarca, setIntelFilterMarca] = useState(() => localStorage.getItem('dy_filter_intel_marca') || '');
 
   // Estados de datos
   const [contactos, setContactos] = useState([]);
@@ -429,16 +441,29 @@ export default function App() {
   const [productosFinnegans, setProductosFinnegans] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Estados de filtros por sección
-  const [tareaFilterStatus, setTareaFilterStatus] = useState('');
-  const [tareaFilterPrio, setTareaFilterPrio] = useState('');
-  const [contactoFilterEstado, setContactoFilterEstado] = useState('');
-  const [visitaFilterTipo, setVisitaFilterTipo] = useState('');
-  const [oportunidadFilterEtapa, setOportunidadFilterEtapa] = useState('');
-  const [cobranzaFilterEstado, setCobranzaFilterEstado] = useState('');
-  const [muestraFilterRes, setMuestraFilterRes] = useState('');
-  const [comFilterTipo, setComFilterTipo] = useState('');
-  const [operacionFilterEstado, setOperacionFilterEstado] = useState('');
+  // Estados de filtros por sección (persistencia en localStorage)
+  const [tareaFilterStatus, setTareaFilterStatus] = useState(() => localStorage.getItem('dy_filter_tarea_status') || '');
+  const [tareaFilterPrio, setTareaFilterPrio] = useState(() => localStorage.getItem('dy_filter_tarea_prio') || '');
+  const [contactoFilterEstado, setContactoFilterEstado] = useState(() => localStorage.getItem('dy_filter_contacto_estado') || '');
+  const [visitaFilterTipo, setVisitaFilterTipo] = useState(() => localStorage.getItem('dy_filter_visita_tipo') || '');
+  const [oportunidadFilterEtapa, setOportunidadFilterEtapa] = useState(() => localStorage.getItem('dy_filter_oportunidad_etapa') || '');
+  const [cobranzaFilterEstado, setCobranzaFilterEstado] = useState(() => localStorage.getItem('dy_filter_cobranza_estado') || '');
+  const [muestraFilterRes, setMuestraFilterRes] = useState(() => localStorage.getItem('dy_filter_muestra_res') || '');
+  const [comFilterTipo, setComFilterTipo] = useState(() => localStorage.getItem('dy_filter_com_tipo') || '');
+  const [operacionFilterEstado, setOperacionFilterEstado] = useState(() => localStorage.getItem('dy_filter_operacion_estado') || '');
+
+  // Guardar cambios de filtros en localStorage
+  useEffect(() => { localStorage.setItem('dy_filter_tarea_status', tareaFilterStatus); }, [tareaFilterStatus]);
+  useEffect(() => { localStorage.setItem('dy_filter_tarea_prio', tareaFilterPrio); }, [tareaFilterPrio]);
+  useEffect(() => { localStorage.setItem('dy_filter_contacto_estado', contactoFilterEstado); }, [contactoFilterEstado]);
+  useEffect(() => { localStorage.setItem('dy_filter_visita_tipo', visitaFilterTipo); }, [visitaFilterTipo]);
+  useEffect(() => { localStorage.setItem('dy_filter_oportunidad_etapa', oportunidadFilterEtapa); }, [oportunidadFilterEtapa]);
+  useEffect(() => { localStorage.setItem('dy_filter_cobranza_estado', cobranzaFilterEstado); }, [cobranzaFilterEstado]);
+  useEffect(() => { localStorage.setItem('dy_filter_muestra_res', muestraFilterRes); }, [muestraFilterRes]);
+  useEffect(() => { localStorage.setItem('dy_filter_com_tipo', comFilterTipo); }, [comFilterTipo]);
+  useEffect(() => { localStorage.setItem('dy_filter_operacion_estado', operacionFilterEstado); }, [operacionFilterEstado]);
+  useEffect(() => { localStorage.setItem('dy_filter_intel_pais', intelFilterPais); }, [intelFilterPais]);
+  useEffect(() => { localStorage.setItem('dy_filter_intel_marca', intelFilterMarca); }, [intelFilterMarca]);
 
   // Estado del modal de confirmación de eliminación
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -911,16 +936,41 @@ export default function App() {
     }
   };
 
-  // Listas filtradas
+  const priorityWeight = useMemo(() => ({ 'alta': 1, 'media': 2, 'baja': 3 }), []);
+  const statusWeight = useMemo(() => ({ 'pendiente': 1, 'hecha': 2 }), []);
+
+  // Listas filtradas y ordenadas por defecto (Estado, Prioridad, Fecha límite, Hora inicio)
   const filteredTareas = useMemo(() => {
-    return tareas.filter(t => {
+    const list = tareas.filter(t => {
       const q = globalSearch.toLowerCase();
       const mQ = !q || (t.titulo?.toLowerCase().includes(q) || t.asignado?.toLowerCase().includes(q) || t.pais_nombre?.toLowerCase().includes(q));
       const mS = !tareaFilterStatus || t.status === tareaFilterStatus;
       const mP = !tareaFilterPrio || t.prioridad === tareaFilterPrio;
       return mQ && mS && mP;
     });
-  }, [tareas, globalSearch, tareaFilterStatus, tareaFilterPrio]);
+
+    return [...list].sort((a, b) => {
+      // 1. Estado (pendiente < hecha)
+      const sA = statusWeight[a.status?.toLowerCase()] || 3;
+      const sB = statusWeight[b.status?.toLowerCase()] || 3;
+      if (sA !== sB) return sA - sB;
+
+      // 2. Prioridad (alta < media < baja)
+      const pA = priorityWeight[a.prioridad?.toLowerCase()] || 4;
+      const pB = priorityWeight[b.prioridad?.toLowerCase()] || 4;
+      if (pA !== pB) return pA - pB;
+
+      // 3. Fecha límite (ascendente)
+      const fA = a.fecha || '9999-12-31';
+      const fB = b.fecha || '9999-12-31';
+      if (fA !== fB) return fA.localeCompare(fB);
+
+      // 4. Hora inicio (ascendente)
+      const hA = a.hora || '23:59';
+      const hB = b.hora || '23:59';
+      return hA.localeCompare(hB);
+    });
+  }, [tareas, globalSearch, tareaFilterStatus, tareaFilterPrio, priorityWeight, statusWeight]);
 
   const filteredContactos = useMemo(() => {
     return contactos.filter(c => {
@@ -1552,7 +1602,7 @@ export default function App() {
                           <div className="calendar-day-num">
                             <span>{cell.day}</span>
                             {dayEvents.length > 0 && (
-                              <span style={{ fontSize: '0.65rem', background: 'var(--primary)', color: '#fff', padding: '1px 5px', borderRadius: 10 }}>
+                              <span className="calendar-day-count">
                                 {dayEvents.length}
                               </span>
                             )}
@@ -2830,7 +2880,7 @@ export default function App() {
                       {/* PANEL DE OPCIONES EXTRAS DE RONDA DE NEGOCIOS Y FERIAS */}
                       {(fv('tipo') === 'Ronda de negocios' || fv('tipo') === 'Feria internacional' || fv('ronda_importadores') > 0) && (
                         <div style={{ background: 'var(--surface-hover)', padding: '16px', borderRadius: '12px', marginBottom: '16px', border: '1px solid var(--border)' }}>
-                          <h4 style={{ fontSize: '0.88rem', fontWeight: 700, margin: '0 0 12px 0', color: 'var(--dy-blue)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <h4 className="form-section-title" style={{ fontSize: '0.88rem', fontWeight: 700, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
                             <Briefcase size={16} /> Opciones Extras: Ronda de Negocios / Feria
                           </h4>
                           <div className="form-grid-2">

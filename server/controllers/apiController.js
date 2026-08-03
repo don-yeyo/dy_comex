@@ -57,7 +57,14 @@ const autoSyncTarea = async (titulo, fecha, hora = null, pais_id = null, notas =
 exports.getTareas = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT t.*, p.nombre as pais_nombre FROM tareas t LEFT JOIN paises p ON t.pais_id = p.id ORDER BY t.status ASC, t.fecha ASC, t.hora ASC, CASE t.prioridad WHEN "alta" THEN 1 WHEN "media" THEN 2 ELSE 3 END'
+      `SELECT t.*, p.nombre as pais_nombre 
+       FROM tareas t 
+       LEFT JOIN paises p ON t.pais_id = p.id 
+       ORDER BY 
+         CASE t.status WHEN 'pendiente' THEN 1 WHEN 'hecha' THEN 2 ELSE 3 END ASC, 
+         CASE t.prioridad WHEN 'alta' THEN 1 WHEN 'media' THEN 2 WHEN 'baja' THEN 3 ELSE 4 END ASC, 
+         t.fecha ASC, 
+         t.hora ASC`
     );
     res.json(rows);
   } catch (err) {
@@ -82,10 +89,25 @@ exports.updateTarea = async (req, res) => {
   const { id } = req.params;
   const { titulo, fecha, hora, hora_fin, prioridad, pais_id, asignado, notas, status } = req.body;
   try {
-    await pool.query(
-      'UPDATE tareas SET titulo = COALESCE(?, titulo), fecha = ?, hora = ?, hora_fin = ?, prioridad = COALESCE(?, prioridad), pais_id = ?, asignado = ?, notas = ?, status = COALESCE(?, status) WHERE id = ?',
-      [titulo, toSqlDate(fecha), toSqlTime(hora), toSqlTime(hora_fin), prioridad || null, pais_id || null, asignado || null, notas || null, status || null, id]
-    );
+    const fields = [];
+    const values = [];
+
+    if (titulo !== undefined) { fields.push('titulo = ?'); values.push(titulo); }
+    if (fecha !== undefined) { fields.push('fecha = ?'); values.push(toSqlDate(fecha)); }
+    if (hora !== undefined) { fields.push('hora = ?'); values.push(toSqlTime(hora)); }
+    if (hora_fin !== undefined) { fields.push('hora_fin = ?'); values.push(toSqlTime(hora_fin)); }
+    if (prioridad !== undefined) { fields.push('prioridad = ?'); values.push(prioridad); }
+    if (pais_id !== undefined) { fields.push('pais_id = ?'); values.push(pais_id || null); }
+    if (asignado !== undefined) { fields.push('asignado = ?'); values.push(asignado || null); }
+    if (notas !== undefined) { fields.push('notas = ?'); values.push(notas || null); }
+    if (status !== undefined) { fields.push('status = ?'); values.push(status); }
+
+    if (fields.length === 0) {
+      return res.json({ message: 'Sin cambios a actualizar' });
+    }
+
+    values.push(id);
+    await pool.query(`UPDATE tareas SET ${fields.join(', ')} WHERE id = ?`, values);
     res.json({ message: 'Tarea actualizada' });
   } catch (err) {
     res.status(500).json({ error: err.message });
